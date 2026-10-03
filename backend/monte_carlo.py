@@ -54,14 +54,43 @@ def run_simulation(x0=EXAMPLE_X0, P=EXAMPLE_P, horizon=6, n_sims=10_000, seed=0)
     risk = (paths > paths[0]).mean(axis=1)
     return paths, dist, risk
 
+def risk_band(r, low=0.10, high=0.25):
+    """low: under `low`, medium: `low` to `high`, high: over `high`."""
+    if r < low:
+        return "low"
+    if r <= high:
+        return "medium"
+    return "high"
 
-def outcome_summary(risk, dist, max_risk=0.10):
-    """Numbers for the Outcome Summary."""
-    under_cap = np.flatnonzero(risk <= max_risk)
-    window = int(under_cap.max()) if len(under_cap) else 0
+def outcome_summary(risk, dist, low=0.10, high=0.25):
+    """Numbers for the Outcome Summary: risk band per month + recommended window.
+
+    low, high: escalation-probability cutoffs between the bands.
+    """
+    if not 0 < low < high < 1:
+        raise ValueError("need 0 < low < high < 1")
+    bands = [risk_band(float(r), low, high) for r in risk]
+
+    def last_month_before(bad):
+        # last month before the band first reaches one of `bad`
+        # (None if that never happens within the horizon)
+        for t, b in enumerate(bands):
+            if b in bad:
+                return t - 1
+        return None
+
+    horizon = len(risk) - 1
+    low_until = last_month_before({"medium", "high"})
+    medium_until = last_month_before({"high"})
+    window = horizon if low_until is None else max(low_until, 0)
     return {
-        "safe_window_months": window,
-        "max_risk": max_risk,
+        "recommended_window_months": window,  # end of the low-risk band
+        "low_threshold": low,
+        "high_threshold": high,
+        "bands": bands,  # band for each month 0..horizon
+        "low_until_month": horizon if low_until is None else low_until,
+        "medium_until_month": horizon if medium_until is None else medium_until,
+        "high_from_month": None if medium_until is None else medium_until + 1,
         "risk_at_window": float(risk[window]),
         "risk_at_horizon": float(risk[-1]),
         "worst_state_at_horizon": float(dist[-1, -1]),
