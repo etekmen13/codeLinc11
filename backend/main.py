@@ -1,41 +1,52 @@
-# ruff: isort:skip_file
-import sqlite3
-from pathlib import Path
-from fastapi import FastAPI
-from pydantic import BaseModel
-# ruff: isort:on
+import numpy as np
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
+
+import monte_carlo
 
 app = FastAPI()
-DB_PATH = Path(__file__).parent / "app.db"
 
 
-def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # rows behave like dicts
-    return conn
+class SimulationRequest(BaseModel):
+    x0: list[float] = Field(  # 1D, length n: starting probability of each state
+        default_factory=lambda: monte_carlo.EXAMPLE_X0.tolist()
+    )
+    P: list[list[float]] = Field(  # 2D, n x n monthly transition matrix
+        default_factory=lambda: monte_carlo.EXAMPLE_P.tolist()
+    )
+    horizon: int = Field(6, ge=1, le=36)  # months
+    n_sims: int = Field(10_000, ge=100, le=100_000)
+    seed: int = 0
+    max_risk: float = Field(0.10, gt=0, lt=1)  # risk cap that defines "safe to wait"
 
-
-with db() as conn:
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS trades (id INTEGER PRIMARY KEY, symbol TEXT, qty REAL)"
+    # Pre-fills the /docs "Try it out" box with a working example
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "x0": monte_carlo.EXAMPLE_X0.tolist(),
+                    "P": monte_carlo.EXAMPLE_P.tolist(),
+                    "horizon": 6,
+                    "n_sims": 10_000,
+                    "seed": 0,
+                    "max_risk": 0.1,
+                }
+            ]
+        }
     )
 
 
-class Trade(BaseModel):
-    symbol: str
-    qty: float
-
-
-@app.get("/api/trades")
-def list_trades():
-    with db() as conn:
-        return [dict(r) for r in conn.execute("SELECT * FROM trades")]
-
-
-@app.post("/api/trades")
-def add_trade(t: Trade):
-    with db() as conn:
-        cur = conn.execute(
-            "INSERT INTO trades (symbol, qty) VALUES (?, ?)", (t.symbol, t.qty)
+@app.post("/api/simulate")
+def simulate(req: SimulationRequest):
+    try:
+        paths, dist, risk = monte_carlo.run_simulation(
+            np.array(req.x0), np.array(req.P), req.horizon, req.n_sims, req.seed
         )
-        return {"id": cur.lastrowid, **t.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {
+        "dist": dist.tolist(),
+        "risk": risk.tolist(),
+        "summary": monte_carlo.outcome_summary(risk, dist, req.max_risk),
+        "sample_paths": paths[:, :100].T.tolist(),  # 100 futures for the animation
+    }
