@@ -1,4 +1,4 @@
-import { find_sample_plan } from "./plans";
+import { find_sample_plan } from "../data/plans";
 import { findProcedure } from "../data/procedures";
 import { hazard_multiplier, isQuizComplete, questionsFor } from "../lib/risk";
 import type { OnboardingResult, QuizAnswers } from "../types";
@@ -8,7 +8,11 @@ export type Step = "symptoms" | "plan" | "procedure" | "quiz" | "review";
 export const STEPS: { id: Step; label: string; title: string }[] = [
   { id: "symptoms", label: "Symptoms", title: "First, a quick safety check" },
   { id: "plan", label: "Your plan", title: "Which dental plan do you have?" },
-  { id: "procedure", label: "Procedure", title: "What does your dentist recommend?" },
+  {
+    id: "procedure",
+    label: "Procedure",
+    title: "What does your dentist recommend?",
+  },
   { id: "quiz", label: "Risk", title: "A few questions about your teeth" },
   { id: "review", label: "Review", title: "Check your details" },
 ];

@@ -5,7 +5,7 @@ import {
   is_valid_subscriber_id,
   normalize_subscriber_id,
   sample_plans,
-} from "../plans";
+} from "../../data/plans";
 import {
   formatDate,
   formatMoney,
@@ -36,7 +36,9 @@ export function PlanStep({
   // Only show the format error after the user leaves the field.
   const [touched, setTouched] = useState(false);
   const sample = planId ? find_sample_plan(planId) : undefined;
-  const idValid = sample ? is_valid_subscriber_id(sample.plan, subscriber_id) : false;
+  const idValid = sample
+    ? is_valid_subscriber_id(sample.plan, subscriber_id)
+    : false;
   const showIdError = touched && subscriber_id !== "" && !idValid;
 
   return (
@@ -48,7 +50,10 @@ export function PlanStep({
           value={planId ?? ""}
           onChange={(e) => {
             // A new insurer means a new ID format, so clear the old ID.
-            onChange({ planId: e.target.value || undefined, subscriber_id: "" });
+            onChange({
+              planId: e.target.value || undefined,
+              subscriber_id: "",
+            });
             setTouched(false);
           }}
         >
@@ -77,14 +82,18 @@ export function PlanStep({
                 onChange={(e) => onChange({ subscriber_id: e.target.value })}
                 onBlur={() => {
                   setTouched(true);
-                  onChange({ subscriber_id: normalize_subscriber_id(subscriber_id) });
+                  onChange({
+                    subscriber_id: normalize_subscriber_id(subscriber_id),
+                  });
                 }}
               />
               <button
                 type="button"
                 className="ob-button-secondary"
                 onClick={() => {
-                  onChange({ subscriber_id: generate_subscriber_id(sample.plan) });
+                  onChange({
+                    subscriber_id: generate_subscriber_id(sample.plan),
+                  });
                   setTouched(true);
                 }}
               >
@@ -105,7 +114,9 @@ export function PlanStep({
             <div>
               <dt>Yearly maximum left</dt>
               <dd>
-                {formatMoney(remainingMaximum(sample.plan, sample.default_member))}{" "}
+                {formatMoney(
+                  remainingMaximum(sample.plan, sample.default_member),
+                )}{" "}
                 <span className="ob-muted">
                   of {formatMoney(sample.plan.annual_maximum)}
                 </span>
@@ -114,7 +125,9 @@ export function PlanStep({
             <div>
               <dt>Deductible left</dt>
               <dd>
-                {formatMoney(remainingDeductible(sample.plan, sample.default_member))}{" "}
+                {formatMoney(
+                  remainingDeductible(sample.plan, sample.default_member),
+                )}{" "}
                 <span className="ob-muted">
                   of {formatMoney(sample.plan.deductible)}
                 </span>
