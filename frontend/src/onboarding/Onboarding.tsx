@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { find_sample_plan } from "./plans";
+import { find_sample_plan } from "../data/plans";
 import { findProcedure } from "../data/procedures";
 import { questionsFor } from "../lib/risk";
 import type { OnboardingResult } from "../types";
@@ -11,13 +11,13 @@ import {
   type Draft,
   type Step,
 } from "./draft";
+import "./onboarding.css";
 import { PlanStep } from "./steps/PlanStep";
 import { ProcedureStep } from "./steps/ProcedureStep";
 import { QuizStep } from "./steps/QuizStep";
 import { ReviewStep } from "./steps/ReviewStep";
 import { SymptomCheck } from "./steps/SymptomCheck";
 import { UrgentCare } from "./steps/UrgentCare";
-import "./onboarding.css";
 
 interface Props {
   onComplete: (result: OnboardingResult) => void;
@@ -51,10 +51,7 @@ export function Onboarding({ onComplete }: Props) {
   if (urgent) {
     return (
       <main className="ob">
-        <UrgentCare
-          headingRef={headingRef}
-          onBack={() => setUrgent(false)}
-        />
+        <UrgentCare headingRef={headingRef} onBack={() => setUrgent(false)} />
       </main>
     );
   }
