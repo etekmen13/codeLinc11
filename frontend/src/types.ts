@@ -46,7 +46,6 @@ export interface Procedure {
 export interface QuizOption {
   id: string;
   label: string;
-  factor: number; // multiplies monthly escalation hazard.
 }
 
 export interface QuizQuestion {
@@ -63,5 +62,11 @@ export interface OnboardingResult {
   member: MemberStatus;
   procedure: Procedure;
   quiz_answers: QuizAnswers;
-  hazard_multiplier: number;
+}
+
+export interface OnboardingRequest {
+  planId: string;
+  subscriberId: string;
+  procedureCode: string;
+  quizAnswers: Record<string, string>; // question id, option id
 }
