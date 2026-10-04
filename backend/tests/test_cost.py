@@ -202,6 +202,27 @@ def test_sequence_threads_state_root_canal_then_crown():
     assert final.max_remaining == cents(1100)
 
 
+def test_losing_a_tooth_costs_more_than_saving_it():
+    # Save: RCT + crown, you pay 475 + 475 = 950 (see the test above).
+    # Lose: extraction A = 165, d = 50, plan = 80% of 115 = 92, you = 73;
+    # implant post A = 1650, plan = 825, you = 825;
+    # implant crown A = 1150, plan = 575, you = 575. Total 1473.
+    save = [
+        claim("D3330", UPTOWN, date(2026, 11, 2)),
+        claim("D2740", UPTOWN, date(2026, 11, 16)),
+    ]
+    lose = [
+        claim("D7140", UPTOWN, date(2026, 11, 2)),
+        claim("D6010", UPTOWN, date(2026, 11, 16)),
+        claim("D6065", UPTOWN, date(2026, 12, 14)),
+    ]
+    saved, _ = adjudicate_sequence(save, state(), SUMMIT.plan)
+    lost, final = adjudicate_sequence(lose, state(), SUMMIT.plan)
+    assert [r.insured.you_pay for r in lost] == [cents(73), cents(825), cents(575)]
+    assert sum(r.insured.you_pay for r in lost) > sum(r.insured.you_pay for r in saved)
+    assert final.max_remaining == cents(508)
+
+
 def test_procedure_not_offered_raises():
     noda = PROVIDERS_BY_ID["noda-family"]  # refers root canals out
     with pytest.raises(ValueError):
