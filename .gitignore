@@ -12,3 +12,5 @@ dist/
 
 **/.ruff_cache/
 docs/
+.claude/
+.worktrees/
