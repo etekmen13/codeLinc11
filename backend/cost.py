@@ -298,7 +298,12 @@ def adjudicate(claim: Claim, state: BenefitState, plan: Plan) -> AdjudicationRes
     network = network_status(plan, prov)
     billed = _lookup(prov.fees, proc.cdt_code, f"fee at {prov.name}")
     if network == "in":
-        base = _lookup(plan.in_network_fees, proc.cdt_code, "in-network fee")
+        # Each office signs its own contract: its negotiated fee is the plan's
+        # schedule scaled by the office's contract rate, rounded half up to
+        # the dollar.
+        schedule = _lookup(plan.in_network_fees, proc.cdt_code, "in-network fee")
+        rate = pct_of(round(prov.contract_rate * 100), schedule)
+        base = (rate + 50) // 100 * 100
         source = "negotiated fee"
     else:
         base = _lookup(plan.out_of_network_allowed, proc.cdt_code, "allowed amount")

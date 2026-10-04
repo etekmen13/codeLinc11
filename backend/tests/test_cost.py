@@ -55,6 +55,22 @@ def test_in_network_filling_deductible_then_coinsurance():
     assert ins.new_state.max_remaining == cents(1920)
 
 
+def test_contract_rate_scales_the_negotiated_fee():
+    # SouthPark's contract is 110% of Summit's schedule: A = 165, d = 50,
+    # plan = 80% of 115 = 92, you = 165 - 92 = 73.
+    r = adjudicate(claim("D2391", SOUTHPARK, date(2026, 11, 2)), state(), SUMMIT.plan)
+    ins = r.insured
+    assert ins.allowed_amount == cents(165)
+    assert (ins.plan_pays, ins.you_pay) == (cents(92), cents(73))
+
+
+def test_negotiated_fee_rounds_half_up_to_the_dollar():
+    # University City at 95% of Summit's 950 crown fee: 902.50 rounds to 903.
+    uc = PROVIDERS_BY_ID["university-city"]
+    r = adjudicate(claim("D2740", uc, date(2026, 11, 2)), state(), SUMMIT.plan)
+    assert r.insured.allowed_amount == cents(903)
+
+
 def test_preventive_skips_deductible():
     r = adjudicate(claim("D1110", UPTOWN, date(2026, 9, 15)), state(), SUMMIT.plan)
     assert (r.insured.plan_pays, r.insured.you_pay) == (cents(85), 0)

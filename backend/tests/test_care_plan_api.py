@@ -154,7 +154,7 @@ def test_compare_card_matches_the_sequence_endpoint():
 
 
 def test_compare_radius_and_validation():
-    near = compare(plan_id="summit-ppo-plus", code="D2740", radius_miles=5).json()
+    near = compare(plan_id="summit-ppo-plus", code="D2740", radius_miles=2).json()
     assert [d["provider_id"] for d in near["in_network"]] == ["uptown-smiles"]
     assert compare(radius_miles=0).status_code == 422
     res = compare(risk_tolerance="reckless")

@@ -400,8 +400,13 @@ def test_without_an_fsa_the_fresh_maximum_wins():
 
 # Comparing dentists. Summit crown, no progression; each dentist's lowest-cost
 # option is January, in the grace period, after a fresh $50 deductible.
-# In network, A = 950: plan 50% of 900 = 450, you owe 500; the $300 FSA pays
-# 300 and 200 is elected at 30%: 0.7 * 200 = 140.
+# In network, A = 950 times the office's contract rate. The $300 FSA pays 300
+# and the rest is elected at 30%.
+#   University City (0.95, A = 903): plan 50% of 853 = 426.50, you owe
+#     476.50; 0.7 * 176.50 = 123.55.
+#   Uptown (1.00, A = 950): plan 50% of 900 = 450, you owe 500; 0.7 * 200 = 140.
+#   SouthPark (1.10, A = 1045): plan 50% of 995 = 497.50, you owe 547.50;
+#     0.7 * 247.50 = 173.25.
 # Out of network, A = 1000: plan 50% of 950 = 475, so you owe 525 plus the
 # balance bill; after the FSA, the rest is elected at 30%.
 #   Dilworth (billed 1350): 525 + 350 = 875; 0.7 * 575 = 402.50.
@@ -409,16 +414,29 @@ def test_without_an_fsa_the_fresh_maximum_wins():
 #   Plaza Midwood (billed 1500): 525 + 500 = 1025; 0.7 * 725 = 507.50.
 
 
+COMPARED = tuple(
+    PROVIDERS_BY_ID[i]
+    for i in (
+        "uptown-smiles",
+        "southpark-dental",
+        "noda-family",
+        "plaza-midwood",
+        "ballantyne-endo",
+        "dilworth-dental",
+        "university-city",
+    )
+)
+
+
 def test_compare_ranks_each_dentist_on_their_best_schedule():
     o = onboarded("summit-ppo-plus", "D2740")
     sim = fake_sim(o)
-    c = compare_dentists(o, sim, sim)
-    assert [x.provider_id for x in c.in_network] == [
-        "uptown-smiles",  # nearest of three at 140
-        "southpark-dental",
-        "university-city",
+    c = compare_dentists(o, sim, sim, providers=COMPARED)
+    assert [(x.provider_id, x.lowest_cost.cost.mean) for x in c.in_network] == [
+        ("university-city", pytest.approx(12355)),
+        ("uptown-smiles", pytest.approx(14000)),
+        ("southpark-dental", pytest.approx(17325)),
     ]
-    assert {x.lowest_cost.cost.mean for x in c.in_network} == {14000}
     assert [(x.provider_id, x.lowest_cost.cost.mean) for x in c.out_of_network] == [
         ("dilworth-dental", pytest.approx(40250)),
         ("ballantyne-endo", pytest.approx(47250)),
@@ -449,7 +467,7 @@ def test_compare_card_matches_the_dentists_plan():
 def test_compare_radius():
     o = onboarded("summit-ppo-plus", "D2740")
     sim = fake_sim(o)
-    c = compare_dentists(o, sim, sim, radius_miles=5)
+    c = compare_dentists(o, sim, sim, radius_miles=2)
     assert [x.provider_id for x in c.in_network] == ["uptown-smiles"]
     assert {x.provider_id for x in c.out_of_network} == {
         "dilworth-dental",
@@ -461,7 +479,20 @@ def test_compare_respects_the_tolerance():
     # Harbor root canal: at medium risk, every in-network dentist's lowest-cost
     # option moves to July, when the waiting period ends.
     o, sim = harbor()
-    low = compare_dentists(o, sim, sim, "low", cvar_weight=0.0)
-    medium = compare_dentists(o, sim, sim, "medium", cvar_weight=0.0)
+    low = compare_dentists(o, sim, sim, "low", cvar_weight=0.0, providers=COMPARED)
+    medium = compare_dentists(
+        o, sim, sim, "medium", cvar_weight=0.0, providers=COMPARED
+    )
     assert {x.lowest_cost.band for x in low.in_network} == {"low"}
     assert {x.lowest_cost.date for x in medium.in_network} == {date(2027, 7, 1)}
+
+
+def test_a_membership_price_can_beat_waiting():
+    # Same case with every dentist: Steele Creek's in-house membership price
+    # today costs less than waiting for the plan to cover the root canal.
+    o, sim = harbor()
+    medium = compare_dentists(o, sim, sim, "medium", cvar_weight=0.0)
+    steele = next(
+        x for x in medium.in_network if x.provider_id == "steele-creek-family"
+    )
+    assert steele.lowest_cost.path == "cash"

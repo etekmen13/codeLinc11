@@ -96,7 +96,8 @@ def test_endpoint_returns_priced_columns():
     data = res.json()
     assert data["procedure"] == "D2740"
     assert data["date_of_service"] == "2026-11-02"
-    assert data["in_network"][0]["cost"]["you_pay"] == 590
+    uptown = next(c for c in data["in_network"] if c["id"] == "uptown-smiles")
+    assert uptown["cost"]["you_pay"] == 590
 
 
 def test_endpoint_rejects_invalid_onboarding():
