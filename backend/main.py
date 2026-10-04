@@ -3,9 +3,11 @@ import sqlite3
 from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel
+from care_plan import router as care_plan_router
 # ruff: isort:on
 
 app = FastAPI()
+app.include_router(care_plan_router)
 DB_PATH = Path(__file__).parent / "app.db"
 
 
