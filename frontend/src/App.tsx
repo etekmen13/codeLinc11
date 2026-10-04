@@ -16,12 +16,13 @@ import type {
 import { CompareScreen } from "./careplan/CompareScreen";
 import { CarePlanScreen } from "./careplan/CarePlanScreen";
 import { Tolerance } from "./careplan/shared";
+import { RiskScreen } from "./screens/RiskScreen";
 import "./careplan/careplan.css";
 
 export default function App() {
-  const [screen, setScreen] = useState<"onboarding" | "compare" | "plan">(
-    "onboarding",
-  );
+  const [screen, setScreen] = useState<
+    "onboarding" | "risk" | "compare" | "plan"
+  >("onboarding");
   const [onboarding, setOnboarding] = useState<OnboardingResult | null>(null);
   const [radius, setRadius] = useState(25);
   const [tolerance, setTolerance] = useState("low");
@@ -122,6 +123,7 @@ export default function App() {
         <nav aria-label="Main navigation">
           {[
             { id: "onboarding", label: "Your details" },
+            { id: "risk", label: "Tooth risk" },
             { id: "compare", label: "Compare providers" },
             { id: "plan", label: "Care plan" },
           ].map((item, i) => (
@@ -154,11 +156,14 @@ export default function App() {
               setProviderId(null);
               setPlan(null);
               setTolerance("low");
-              setScreen("compare");
+              setScreen("risk");
             }}
           />
         </div>
-        {screen !== "onboarding" && onboarding && (
+        {screen === "risk" && request && (
+          <RiskScreen request={request} on_next={() => setScreen("compare")} />
+        )}
+        {(screen === "compare" || screen === "plan") && onboarding && (
           <>
             <div className="cp-controls">
               <Tolerance
