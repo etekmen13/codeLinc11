@@ -6,7 +6,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef, type ReactNode } from "react";
-import { expectedPlanPays } from "../careplan/derive";
+import { expectedPlanPays, owed } from "../careplan/derive";
 import { band_label } from "../lib/labels";
 import { formatISODate, formatMoney } from "../lib/coverage";
 import { prefersReducedMotion } from "../motion/config";
@@ -37,8 +37,8 @@ export function Providers() {
   const quotes = remote.data?.quotes ?? [];
   const keep = (d: DentistOption) =>
     !credential || d.credentials.includes(credential);
-  const inNet = (data?.in_network ?? []).filter(keep);
-  const outNet = (data?.out_of_network ?? []).filter(keep);
+  const inNet = (data?.in_network ?? []).filter(keep).sort(byOwed);
+  const outNet = (data?.out_of_network ?? []).filter(keep).sort(byOwed);
   const credentials = [
     ...new Set(
       [...(data?.in_network ?? []), ...(data?.out_of_network ?? [])].flatMap(
@@ -208,9 +208,17 @@ export function Providers() {
             </div>
           </section>
         ))}
-        <p className="quiet providers__foot">{ui.providers.fsaNote}</p>
       </div>
     </div>
+  );
+}
+
+// What you'd owe the dentist, then the backend's net cost, then distance.
+function byOwed(a: DentistOption, b: DentistOption): number {
+  return (
+    owed(a.lowest_cost).total - owed(b.lowest_cost).total ||
+    a.lowest_cost.cost.mean - b.lowest_cost.cost.mean ||
+    a.distance_miles - b.distance_miles
   );
 }
 
@@ -225,7 +233,7 @@ function ProviderBlock({
   selected: boolean;
   onChoose: () => void;
 }) {
-  const youPay = d.lowest_cost.cost.mean;
+  const { total: youPay, fromFsa } = owed(d.lowest_cost);
   const planPays = expectedPlanPays(d.lowest_cost);
   const c = quote?.cost;
   return (
@@ -254,6 +262,14 @@ function ProviderBlock({
       <p className="provider__sub">
         {fill(ui.providers.planPays, { amount: formatMoney(planPays) })} ·{" "}
         {fill(ui.providers.onDate, { date: formatISODate(d.lowest_cost.date) })}
+        {fromFsa >= 0.5 && (
+          <>
+            {" · "}
+            {youPay - fromFsa < 0.5
+              ? ui.providers.allFsa
+              : fill(ui.providers.fromFsa, { amount: formatMoney(fromFsa) })}
+          </>
+        )}
       </p>
       {!d.in_network && c && c.balance_billing > 0 && (
         <>

@@ -400,7 +400,8 @@ export const ui = {
     choose: "Choose",
     barLabel:
       "Today: plan pays {planPays}, your share {share}, balance bill {gap}",
-    fsaNote: "Figures include FSA and tax savings.",
+    fromFsa: "{amount} of it from your FSA",
+    allFsa: "all from your FSA",
   },
   careplan: {
     headline: "{amount}",
