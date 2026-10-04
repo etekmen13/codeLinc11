@@ -8,6 +8,7 @@
 // number of them, and plan totals below are sums over placements.
 
 import type { CarePlan, CarePlanOption } from "../types";
+import { owed } from "./derive";
 
 export type TimingId = "now" | "after_reset" | "lowest";
 
@@ -19,9 +20,10 @@ export interface Placement {
 export interface TimingPlan {
   id: TimingId;
   placements: Placement[];
-  cost: number; // expected cost after FSA and tax, summed over placements
+  owed: number; // expected amount owed to the dentist, summed over placements
+  fromFsa: number; // the part of `owed` the FSA would pay
   escalation: number; // chance the tooth is worse by the last placement
-  savingsVsNow: number; // "now" plan's cost minus this one's
+  savingsVsNow: number; // "now" plan's amount owed minus this one's
   isLowest: boolean; // contains the lowest-cost option in tolerance
 }
 
@@ -34,13 +36,14 @@ function plan(
   data: CarePlan,
 ): TimingPlan {
   const placements = options.map((option) => ({ date: option.date, option }));
-  const cost = options.reduce((sum, o) => sum + o.cost.mean, 0);
+  const total = options.reduce((sum, o) => sum + owed(o).total, 0);
   return {
     id,
     placements,
-    cost,
+    owed: total,
+    fromFsa: options.reduce((sum, o) => sum + owed(o).fromFsa, 0),
     escalation: Math.max(...options.map((o) => o.escalation_probability)),
-    savingsVsNow: data.baseline.cost.mean - cost,
+    savingsVsNow: owed(data.baseline).total - total,
     isLowest: options.some((o) => same(o, data.lowest_cost)),
   };
 }

@@ -172,6 +172,14 @@ const beatList: Beat[] = [
     id: "sim_intro",
     expression: "thinking",
     line: "I'm going to play out the next {months} months {futures} times, using your answers. Each line is one possible future for that tooth.",
+    // No options: once the line is typed, the stage darkens and the futures
+    // play. sim_played follows on the same stop.
+  },
+  {
+    // On the maroon stage, after the playback.
+    id: "sim_played",
+    expression: "thinking",
+    line: "The brighter a path, the more futures took it.",
     options: [
       { label: "Next", value: "continue" },
       { label: "Replay", value: "replay", small: true },
@@ -382,26 +390,40 @@ export const ui = {
     loading: "Running the futures…",
   },
   providers: {
-    intro:
-      "Here's who can do this near you, sorted by what you'd actually pay. In-network dentists have agreed to your plan's prices. Out-of-network dentists haven't, so you may be billed the difference.",
     // {radius}, {procedure}, {tolerance} and {credentials} are editable.
     filters:
       "Within {radius}, for {procedure}, keeping the chance it gets worse {tolerance}, with {credentials}.",
     radius: "{n} miles",
     anyCredentials: "any credentials",
     inNetwork: "In network",
+    inNetworkNote: "Agreed to your plan's prices",
     outOfNetwork: "Out of network",
+    outOfNetworkNote: "Can bill you the difference",
+    fsa: "Use my FSA",
+    fsaBalance: "{amount} balance",
     youPay: "you'd pay",
+    miles: "{n} mi",
+    cash: "cash price",
+    // Shown on hover or focus, one short phrase each.
+    billed: "Billed {amount}",
     planPays: "plan pays {amount}",
+    waived: "{amount} waived at your plan's price",
+    cashWaived: "{amount} off for cash",
+    balanceBill: "{amount} of it is a balance bill",
     onDate: "on {date}",
     none: "None within this distance.",
     loading: "Pricing dentists…",
     error: "Couldn't price dentists. {problems}",
     retry: "Try again",
     choose: "Choose",
-    barLabel:
-      "Today: plan pays {planPays}, your share {share}, balance bill {gap}",
-    fsaNote: "Figures include FSA and tax savings.",
+    legend: {
+      plan: "Plan pays",
+      you: "You pay",
+      gap: "Balance bill",
+      waived: "Waived",
+    },
+    fromFsa: "{amount} of it from your FSA",
+    allFsa: "all from your FSA",
   },
   careplan: {
     headline: "{amount}",

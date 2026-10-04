@@ -28,10 +28,24 @@ function gaussian(): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random());
 }
 
-export function TrajectoryField({ spread }: { spread: number }) {
+// paused: stop drawing while something opaque covers the field (the
+// simulation stage), so it doesn't compete for frames.
+export function TrajectoryField({
+  spread,
+  paused = false,
+}: {
+  spread: number;
+  paused?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const target = useRef(spread);
   const redraw = useRef<() => void>(() => {});
+  const pausedRef = useRef(paused);
+  const resume = useRef<() => void>(() => {});
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (!paused) resume.current();
+  }, [paused]);
   useEffect(() => {
     target.current = spread;
     redraw.current();
@@ -109,14 +123,15 @@ export function TrajectoryField({ spread }: { spread: number }) {
         (target.current - current) *
         (1 - Math.exp((-3 * dt) / duration.spread));
       draw();
-      raf = requestAnimationFrame(frame);
+      if (!pausedRef.current) raf = requestAnimationFrame(frame);
     };
 
     const start = () => {
       cancelAnimationFrame(raf);
       last = performance.now();
-      if (!reduce) raf = requestAnimationFrame(frame);
+      if (!reduce && !pausedRef.current) raf = requestAnimationFrame(frame);
     };
+    resume.current = start;
     const onVisibility = () =>
       document.hidden ? cancelAnimationFrame(raf) : start();
     const onResize = () => {

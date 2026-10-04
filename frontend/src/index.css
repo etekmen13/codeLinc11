@@ -551,101 +551,261 @@ h3 {
   min-height: 100svh;
   padding: 8vh var(--layout-gutter) 0;
 }
-.sim__plate {
-  max-width: 68rem;
+
+/* The simulation stage: a fixed maroon ground that fades in once the
+   narrator's intro line is said, with the futures centered on it. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: var(--maroon);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--stage-darken) var(--ease);
 }
-.sim__plate > div {
-  border: 0 !important;
-  border-radius: 0 !important;
+.stage[data-up="true"] {
+  opacity: 1;
 }
+.stage__plot {
+  position: absolute;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(72rem, calc(100vw - 2 * var(--layout-gutter)));
+  height: 58vh;
+}
+.futures {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--white);
+}
+.futures__canvas {
+  display: block;
+  width: 100%;
+}
+.futures__canvas--live {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.futures__state,
+.futures__axis {
+  opacity: 0;
+  transition: opacity var(--dur-move) var(--ease);
+}
+.futures[data-shown="true"] .futures__state,
+.futures[data-shown="true"] .futures__axis {
+  opacity: 1;
+}
+.futures__state {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  text-align: right;
+  font-size: var(--type-small);
+  line-height: 1.2;
+  color: var(--white-72);
+}
+.futures__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.futures__tick {
+  position: absolute;
+  top: 0.6rem;
+  width: 1px;
+  height: 0.5rem;
+  background: var(--white-40);
+}
+.futures__end {
+  position: absolute;
+  top: 1.35rem;
+  transform: translateX(-50%);
+  font-size: var(--type-micro);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--white-72);
+}
+
+/* While the stage is up: the narration in white on a maroon scrim, and the
+   rail and meter out of the way. */
+.rail,
+.meter {
+  transition: opacity var(--dur-fade) var(--ease);
+}
+:root[data-stage] .narration__line,
+:root[data-stage] .narration__answers {
+  color: var(--white);
+}
+:root[data-stage] .narration__scrim {
+  background: radial-gradient(
+    ellipse closest-side at 50% 55%,
+    var(--maroon-90) 55%,
+    var(--maroon-0) 100%
+  );
+}
+:root[data-stage] .narration :focus-visible {
+  outline-color: var(--white);
+}
+:root[data-stage] .rail,
+:root[data-stage] .meter {
+  opacity: 0;
+  pointer-events: none;
+}
+/* The summary fills the space beside the narrator, down to about two
+   thirds of the screen, clear of the narration line below. */
 .sim--summary {
-  padding-top: 12vh;
-  max-width: 72rem;
-}
-.state-bar {
+  padding-top: 7vh;
+  padding-right: var(--layout-gutter);
   display: flex;
-  gap: 2px;
-  height: 10px;
-  margin: 3rem 0 3.5rem;
+  flex-direction: column;
+  gap: 4vh;
+}
+.figure--giant {
+  font-size: var(--type-figure-giant);
+}
+
+/* Outcome bar: thick segments, each labeled under its own left edge, with
+   a thin rule up to the bar. Labels that would collide drop to a lower row
+   (StateBar); the lower rule runs behind the label above it. */
+.state-bar {
+  --label-row: 3rem;
+  --leader: 0.75rem;
+  display: flex;
+  gap: 3px;
+  height: clamp(2.5rem, 7vh, 5.5rem);
+  margin-bottom: calc(var(--label-rows, 1) * var(--label-row) + var(--leader));
 }
 .state-bar__seg {
   position: relative;
   min-width: 2px;
 }
-.state-bar__label {
+.state-label {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  z-index: 2;
   left: 0;
+  top: calc(100% + var(--leader));
+  display: grid;
+  justify-items: start;
+  padding: 0 0.4rem 0.15rem;
+  border-left: 1px solid var(--maroon-24);
+  background: var(--white);
   white-space: nowrap;
+  line-height: 1.2;
+}
+.state-label::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: 100%;
+  height: var(--leader);
+  border-left: 1px solid var(--maroon-24);
+}
+.state-label[data-row="1"] {
+  z-index: 1;
+  top: calc(100% + var(--leader) + var(--label-row));
+}
+.state-label[data-row="1"]::before {
+  height: calc(var(--leader) + var(--label-row));
+}
+.state-label[data-row="2"] {
+  z-index: 0;
+  top: calc(100% + var(--leader) + 2 * var(--label-row));
+}
+.state-label[data-row="2"]::before {
+  height: calc(var(--leader) + 2 * var(--label-row));
+}
+.state-label[data-row="-1"] {
+  visibility: hidden;
+}
+.state-label__name {
   font-size: var(--type-micro);
   color: var(--maroon-64);
 }
+.state-label__share {
+  font-size: var(--type-lead);
+}
+
+/* Risk band for each month. */
 .band-strip {
   display: flex;
-  gap: 1px;
-  height: 3px;
+  gap: 2px;
+  height: 0.6rem;
   margin-bottom: 0.75rem;
 }
 .band-strip span {
   flex: 1;
 }
 
-/* Providers. */
+/* Providers: two centered columns, in network and out. */
 .providers {
   min-height: 100svh;
-  padding: 9vh 0 7vh;
+  padding: 9vh var(--layout-gutter) 12vh;
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  align-items: center;
+  gap: 3.5rem;
 }
 .providers__head {
-  padding: 0 var(--layout-gutter);
   display: grid;
+  justify-items: center;
   gap: 1.5rem;
+  text-align: center;
+  max-width: 44rem;
 }
 .providers__filters {
   font-family: var(--font-display);
   font-size: calc(var(--type-narration) * 0.9);
   font-weight: 360;
   line-height: 1.35;
-  max-width: 34ch;
 }
-.providers__rows {
+.providers__tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem 2.5rem;
+}
+.providers__columns {
+  width: 100%;
+  max-width: 76rem;
   display: grid;
-  gap: 2.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
   transition: opacity var(--dur-fade) var(--ease);
 }
-.providers__rows[data-loading="true"] {
+.providers__columns[data-loading="true"] {
   opacity: 0.4;
 }
-.provider-row__label {
-  padding: 0 var(--layout-gutter);
-  font-size: var(--type-small);
-  color: var(--maroon-64);
-  margin-bottom: 0.75rem;
+.provider-col__head {
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--maroon);
 }
-.provider-row__viewport {
-  overflow: hidden;
-  padding: 0 var(--layout-gutter);
+.provider-col__label {
+  font-family: var(--font-display);
+  font-size: var(--type-display-l);
+  font-weight: 380;
+  line-height: 1.06;
+  letter-spacing: -0.015em;
 }
-.provider-row__track {
-  display: flex;
-  gap: 4rem;
-  width: max-content;
+.provider-col__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.providers__foot {
-  padding: 0 var(--layout-gutter);
-}
+
+/* One dentist: name and distance on the left, the figure on the right, the
+   bill bar underneath. The whole row is the choose button's hit area. */
 .provider {
   position: relative;
-  width: 17rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--maroon-12);
-  transition: border-color var(--dur-fade) var(--ease);
-}
-.provider:hover,
-.provider[data-selected="true"] {
-  border-top-color: var(--maroon);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.35rem 1.5rem;
+  padding: 1.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--maroon-12);
 }
 .provider__name {
   font-size: var(--type-lead);
@@ -658,35 +818,36 @@ h3 {
   inset: 0;
 }
 .provider__meta,
-.provider__sub {
+.provider__fsa {
+  margin-top: 0.3rem;
   font-size: var(--type-small);
   color: var(--maroon-64);
 }
+.provider__price {
+  text-align: right;
+}
 .provider .figure {
-  margin: 1.25rem 0 0.4rem;
+  transition: color var(--dur-fade) var(--ease);
 }
-.cost-bar {
-  display: flex;
-  gap: 2px;
-  height: 4px;
-  margin-top: 1rem;
+.provider:hover .figure,
+.provider[data-selected="true"] .figure {
+  color: var(--wine);
 }
-.cost-bar__plan {
-  background: var(--maroon-24);
-}
-.cost-bar__you {
-  background: var(--maroon);
-}
-.cost-bar__gap {
-  background: var(--orange);
-  min-width: 3px;
+.provider[data-selected="true"] {
+  border-bottom-color: var(--maroon);
 }
 .provider__note {
   position: absolute;
-  background: var(--white);
-  top: calc(100% + 0.75rem);
+  z-index: 2;
+  top: calc(100% - 0.25rem);
   left: 0;
-  right: -2rem;
+  right: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--white);
+  border: 1px solid var(--maroon-12);
+  font-size: var(--type-small);
+  color: var(--maroon-64);
+  line-height: 1.5;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fade) var(--ease);
@@ -694,6 +855,87 @@ h3 {
 .provider:hover .provider__note,
 .provider:focus-within .provider__note {
   opacity: 1;
+}
+
+/* The bill bar and its legend. */
+.bill-bar {
+  grid-column: 1 / -1;
+  margin-top: 0.6rem;
+}
+.bill-bar__fill {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+.bill-bar__plan,
+.bill-bar__you,
+.bill-bar__gap,
+.bill-bar__waived {
+  display: block;
+}
+.bill-bar__plan {
+  background: var(--maroon-24);
+}
+.bill-bar__you {
+  background: var(--maroon);
+}
+.bill-bar__gap {
+  background: var(--orange);
+}
+.bill-bar__waived {
+  box-shadow: inset 0 0 0 1px var(--maroon-24);
+}
+.bill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-micro);
+  color: var(--maroon-64);
+}
+.bill-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bill-legend span {
+  width: 0.9rem;
+  height: 6px;
+}
+
+/* A two-state switch. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--type-small);
+}
+.switch__track {
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: var(--maroon-24);
+  transition: background var(--dur-fade) var(--ease);
+}
+.switch__thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform var(--dur-fade) var(--ease);
+}
+.switch[aria-checked="true"] .switch__track {
+  background: var(--maroon);
+}
+.switch[aria-checked="true"] .switch__thumb {
+  transform: translateX(1rem);
 }
 
 /* Inline choice lists. */
@@ -1092,7 +1334,7 @@ h3 {
 }
 
 /* Narrow screens: var(--layout-gutter-narrow) gutters, narration across the lower half, provider
-   rows stacked. */
+   columns stacked. */
 @media (max-width: 767px) {
   /* The narrator moves to the top, smaller; the bust steps out. */
   .lincoln {
@@ -1144,28 +1386,16 @@ h3 {
   .plaque {
     padding: 1.5rem 1.25rem;
   }
-  .providers__head,
-  .provider-row__label,
-  .provider-row__viewport,
-  .providers__foot {
+  .providers {
     padding-left: var(--layout-gutter-narrow);
     padding-right: var(--layout-gutter-narrow);
   }
-  .provider-row__viewport {
-    overflow: visible;
+  .providers__columns {
+    grid-template-columns: 1fr;
+    gap: 3.5rem;
   }
-  .provider-row__track {
-    flex-direction: column;
-    width: auto;
-    gap: 2.5rem;
-  }
-  .provider {
-    width: auto;
-  }
-  .provider__note {
-    position: static;
-    opacity: 1;
-    margin-top: 0.75rem;
+  .provider-col__label {
+    font-size: var(--type-figure);
   }
   .careplan__compare {
     grid-template-columns: 1fr 1fr;
@@ -1196,21 +1426,14 @@ h3 {
   }
 }
 
-/* Reduced motion: no parallax, no typewriter (handled in code), provider
-   rows stack, transitions become instant. */
+/* Reduced motion: no parallax, no typewriter (handled in code),
+   transitions become instant. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
     animation: none !important;
-  }
-  .provider-row__viewport {
-    overflow: visible;
-  }
-  .provider-row__track {
-    flex-wrap: wrap;
-    width: auto;
   }
 }
 

@@ -111,6 +111,11 @@ class Provider:
     networks: frozenset[str]  # ids of the plans this dentist is in network with
     fees: dict[str, float]  # procedure code -> billed fee; missing = not offered
     cash_prices: dict[str, float]  # procedure code -> self-pay price; missing = none
+    # In network, this office's negotiated fees as a multiple of the plan's
+    # schedule. Insurers contract different fee levels by office (Delta's
+    # PPO and Premier networks, for example), so two in-network dentists can
+    # charge the same member different amounts.
+    contract_rate: float = 1.0
 
 
 # The date every sample member's balances describe.
@@ -420,12 +425,15 @@ PROVIDERS: tuple[Provider, ...] = (
         },
     ),
     Provider(
+        # A richer contract than Uptown: the same plan pays it more, and
+        # the member's share grows with it.
         id="southpark-dental",
         name="SouthPark Dental",
         lat=35.1500,
         lon=-80.8300,
         credentials=("DMD",),
         networks=ALL_PLANS,
+        contract_rate=1.1,
         fees={
             "D1110": 130,
             "D1206": 45,
@@ -446,6 +454,7 @@ PROVIDERS: tuple[Provider, ...] = (
         lon=-80.8020,
         credentials=("DDS",),
         networks=frozenset({"summit-ppo-plus", "keystone-ppo"}),
+        contract_rate=0.9,
         fees={"D1110": 105, "D1206": 30, "D2391": 175, "D7140": 195},
         cash_prices={},
     ),
@@ -523,6 +532,7 @@ PROVIDERS: tuple[Provider, ...] = (
         lon=-80.7350,
         credentials=("DMD",),
         networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic"}),
+        contract_rate=0.95,
         fees={
             "D1110": 110,
             "D1206": 35,
@@ -534,6 +544,243 @@ PROVIDERS: tuple[Provider, ...] = (
             "D6065": 1450,
         },
         cash_prices={},
+    ),
+    # The rest fill out each plan's columns to eight in network and eight
+    # out. Every one is a general office that does all eight
+    # procedures, bills at or above every plan's allowed amount, and keeps
+    # any cash price at or below its billed fee. Contract rates spread the
+    # in-network prices from 0.80 to 1.15 of the plan's schedule.
+    Provider(
+        # The highest sticker prices in network: shows that the negotiated
+        # fee, not the bill, sets what an in-network member pays.
+        id="myers-park-studio",
+        name="Myers Park Dental Studio",
+        lat=35.1900,
+        lon=-80.8200,
+        credentials=("DMD", "FAGD"),
+        networks=ALL_PLANS,
+        fees={
+            "D1110": 155,
+            "D1206": 55,
+            "D2391": 265,
+            "D3330": 1550,
+            "D2740": 1700,
+            "D7140": 285,
+            "D6010": 2850,
+            "D6065": 1950,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        # In network with an in-house membership plan: its cash prices beat
+        # the insured price when the plan pays little (a waiting period, or
+        # a used-up maximum).
+        id="steele-creek-family",
+        name="Steele Creek Family Dental",
+        lat=35.1200,
+        lon=-80.9600,
+        credentials=("DDS",),
+        networks=ALL_PLANS,
+        fees={
+            "D1110": 120,
+            "D1206": 40,
+            "D2391": 195,
+            "D3330": 1200,
+            "D2740": 1300,
+            "D7140": 215,
+            "D6010": 2250,
+            "D6065": 1500,
+        },
+        cash_prices={
+            "D1110": 85,
+            "D1206": 28,
+            "D2391": 125,
+            "D3330": 720,
+            "D2740": 780,
+            "D7140": 140,
+            "D6010": 1500,
+            "D6065": 1000,
+        },
+    ),
+    Provider(
+        # The leanest contract in network: the lowest in-network prices,
+        # and the farthest drive.
+        id="matthews-dental",
+        name="Matthews Dental Associates",
+        lat=35.1168,
+        lon=-80.7237,
+        credentials=("DDS",),
+        networks=ALL_PLANS,
+        contract_rate=0.8,
+        fees={
+            "D1110": 125,
+            "D1206": 40,
+            "D2391": 205,
+            "D3330": 1225,
+            "D2740": 1325,
+            "D7140": 225,
+            "D6010": 2300,
+            "D6065": 1525,
+        },
+        cash_prices={
+            "D1110": 100,
+            "D1206": 32,
+            "D2391": 165,
+            "D3330": 980,
+            "D2740": 1060,
+            "D7140": 180,
+            "D6010": 1850,
+            "D6065": 1220,
+        },
+    ),
+    Provider(
+        # The richest contract in network: the highest in-network prices.
+        id="cotswold-family",
+        name="Cotswold Family Dentistry",
+        lat=35.1850,
+        lon=-80.7950,
+        credentials=("DMD",),
+        networks=ALL_PLANS,
+        contract_rate=1.15,
+        fees={
+            "D1110": 135,
+            "D1206": 45,
+            "D2391": 225,
+            "D3330": 1350,
+            "D2740": 1450,
+            "D7140": 245,
+            "D6010": 2450,
+            "D6065": 1650,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        # In network for MetLife and Lincoln, not Delta, on a lean contract.
+        id="east-charlotte",
+        name="East Charlotte Dental",
+        lat=35.2050,
+        lon=-80.7300,
+        credentials=("DDS",),
+        networks=frozenset({"harbor-ppo-basic", "keystone-ppo"}),
+        contract_rate=0.88,
+        fees={
+            "D1110": 115,
+            "D1206": 38,
+            "D2391": 190,
+            "D3330": 1175,
+            "D2740": 1275,
+            "D7140": 210,
+            "D6010": 2200,
+            "D6065": 1475,
+        },
+        cash_prices={
+            "D1110": 90,
+            "D1206": 30,
+            "D2391": 140,
+            "D3330": 800,
+            "D2740": 860,
+            "D7140": 155,
+            "D6010": 1600,
+            "D6065": 1080,
+        },
+    ),
+    Provider(
+        # Boutique, out of network everywhere, no cash discount: the largest
+        # balance bills in the catalog.
+        id="ballantyne-cosmetic",
+        name="Ballantyne Cosmetic & Implant Dentistry",
+        lat=35.0600,
+        lon=-80.8550,
+        credentials=("DMD", "Prosthodontist"),
+        networks=frozenset(),
+        fees={
+            "D1110": 175,
+            "D1206": 60,
+            "D2391": 295,
+            "D3330": 1750,
+            "D2740": 1900,
+            "D7140": 320,
+            "D6010": 3200,
+            "D6065": 2200,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        id="lake-norman-group",
+        name="Lake Norman Dental Group",
+        lat=35.4107,
+        lon=-80.8429,
+        credentials=("DDS",),
+        networks=frozenset(),
+        fees={
+            "D1110": 150,
+            "D1206": 52,
+            "D2391": 255,
+            "D3330": 1500,
+            "D2740": 1625,
+            "D7140": 275,
+            "D6010": 2750,
+            "D6065": 1875,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        # Out of network but cash friendly: when the plan won't pay, its
+        # cash price is among the lowest anywhere.
+        id="west-charlotte",
+        name="West Charlotte Dental",
+        lat=35.2450,
+        lon=-80.8900,
+        credentials=("DDS",),
+        networks=frozenset(),
+        fees={
+            "D1110": 120,
+            "D1206": 40,
+            "D2391": 200,
+            "D3330": 1200,
+            "D2740": 1300,
+            "D7140": 220,
+            "D6010": 2200,
+            "D6065": 1500,
+        },
+        cash_prices={
+            "D1110": 80,
+            "D1206": 25,
+            "D2391": 120,
+            "D3330": 700,
+            "D2740": 760,
+            "D7140": 135,
+            "D6010": 1450,
+            "D6065": 975,
+        },
+    ),
+    Provider(
+        id="mint-hill-dental",
+        name="Mint Hill Dental Care",
+        lat=35.1796,
+        lon=-80.6473,
+        credentials=("DMD",),
+        networks=frozenset(),
+        fees={
+            "D1110": 135,
+            "D1206": 45,
+            "D2391": 225,
+            "D3330": 1325,
+            "D2740": 1425,
+            "D7140": 240,
+            "D6010": 2400,
+            "D6065": 1650,
+        },
+        cash_prices={
+            "D1110": 110,
+            "D1206": 36,
+            "D2391": 180,
+            "D3330": 1050,
+            "D2740": 1130,
+            "D7140": 195,
+            "D6010": 1950,
+            "D6065": 1320,
+        },
     ),
 )
 
@@ -621,6 +868,8 @@ def _check() -> None:
             raise ValueError(f"provider {d.id}: fee for unknown procedure")
         if not d.cash_prices.keys() <= d.fees.keys():
             raise ValueError(f"provider {d.id}: cash price for a procedure not offered")
+        if not 0.5 <= d.contract_rate <= 2:
+            raise ValueError(f"provider {d.id}: contract rate out of range")
 
 
 _check()

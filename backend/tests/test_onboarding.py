@@ -36,6 +36,12 @@ def test_response_carries_as_of_and_fsa():
     assert member["fsa"]["grace_period_end"] is None
 
 
+def test_use_fsa_false_plans_without_the_fsa():
+    o = validate_onboarding(request().model_copy(update={"use_fsa": False}))
+    assert o.member.fsa is None
+    assert validate_onboarding(request()).member.fsa is not None
+
+
 def test_quiz_options_carry_risk_direction():
     res = TestClient(main.app).get("/api/quiz?procedure=D3330")
     assert res.status_code == 200

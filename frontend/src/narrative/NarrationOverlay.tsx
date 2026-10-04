@@ -1,6 +1,7 @@
 // The narrator's line: a fixed layer in the lower third that shows the
 // current beat, types it out, and offers its answers. Beats cross-fade; the
 // layer itself never moves. The left third is kept clear for the avatar.
+// While the futures play on the maroon stage, the line steps aside.
 
 import { useEffect, useState } from "react";
 import { duration } from "../motion/config";
@@ -29,6 +30,11 @@ export function NarrationOverlay({
 }) {
   const currentId = useStore((s) => s.currentStopId);
   const reaction = useStore((s) => s.reaction);
+  const staged = useStore(
+    (s) =>
+      s.currentStopId === "sim_intro" &&
+      (s.simStage === "dark" || s.simStage === "playing"),
+  );
   const stop = stops.find((s) => s.id === currentId);
 
   // What should be on screen now.
@@ -101,7 +107,19 @@ export function NarrationOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [ready, shown?.reaction]);
 
-  if (!shown || !beat || !live || hidden) return null;
+  if (!shown || !beat || !live) return null;
+
+  const typed = () => {
+    setTypedKey(shown.key);
+    // Let the rest of the page know a line has been said in full.
+    const done = `${shown.stop.id}:${beat.beatId}`;
+    if (
+      !shown.reaction &&
+      !beat.status &&
+      useStore.getState().lineDone !== done
+    )
+      useStore.getState().patch({ lineDone: done });
+  };
 
   return (
     <>
@@ -110,7 +128,7 @@ export function NarrationOverlay({
           {fill(ui.quizCounter, beat.counter)}
         </p>
       )}
-      <div className="narration" data-visible={visible}>
+      <div className="narration" data-visible={visible && !hidden && !staged}>
         <div className="narration__scrim" aria-hidden="true" />
         <div className="narration__body">
           <p
@@ -124,7 +142,7 @@ export function NarrationOverlay({
               id={shown.key}
               text={beat.line}
               skip={skip}
-              onDone={() => setTypedKey(shown.key)}
+              onDone={typed}
             />
           </p>
           {!shown.reaction && (

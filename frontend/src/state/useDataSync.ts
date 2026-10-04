@@ -73,10 +73,17 @@ export function useDataSync() {
   const onboardingOk = useStore((s) => fresh(s.onboarding, key) !== null);
   const radius = useStore((s) => s.radius);
   const tolerance = useStore((s) => s.tolerance);
+  const useFsa = useStore((s) => s.useFsa);
   const providerId = useStore((s) => s.providerId);
   const compareKey = useStore(comparisonKey);
   const planKey = useStore(carePlanKey);
   const body = (): OnboardingRequest => JSON.parse(key!) as OnboardingRequest;
+  // Pricing requests carry the FSA choice; onboarding and the simulation
+  // don't depend on it.
+  const priced = (): OnboardingRequest => ({
+    ...body(),
+    ...(!useFsa && { use_fsa: false }),
+  });
 
   useRemote("form", "form", fetch_form);
 
@@ -103,7 +110,7 @@ export function useDataSync() {
   useRemote("simulation", planned, () => fetch_simulation(body()));
 
   useRemote("comparison", planned && compareKey, async () => {
-    const base = body();
+    const base = priced();
     const [comparison, prices] = await Promise.all([
       fetch_care_comparison({
         ...base,
@@ -120,7 +127,7 @@ export function useDataSync() {
 
   useRemote("carePlan", planned && planKey, () =>
     fetch_care_plan({
-      ...body(),
+      ...priced(),
       provider_id: providerId!,
       risk_tolerance: tolerance,
     }),

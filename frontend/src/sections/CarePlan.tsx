@@ -25,7 +25,7 @@ import { procedurePhrases, ui } from "../narrative/script";
 import { fill } from "../narrative/template";
 import { carePlanKey, fresh, procedure, samplePlan } from "../state/selectors";
 import { useStore, type AppState } from "../state/store";
-import { isoDate } from "../careplan/derive";
+import { isoDate, owed } from "../careplan/derive";
 import { bandColor } from "../lib/risk";
 import type { CarePlan as CarePlanData, CarePlanOption } from "../types";
 
@@ -94,12 +94,20 @@ export function CarePlan() {
   return (
     <div className="careplan" data-loading={!ready}>
       <header className="careplan__head">
-        <p className="figure figure--xl tabular">{formatMoney(chosen.cost)}</p>
+        <p className="figure figure--xl tabular">{formatMoney(chosen.owed)}</p>
         <p className="quiet">
           {fill(ui.careplan.headlineNote, {
             provider: provider?.name ?? data.provider_id,
             timing: ui.careplan.timings[chosen.id],
           })}
+          {chosen.fromFsa >= 0.5 &&
+            ` · ${
+              chosen.owed - chosen.fromFsa < 0.5
+                ? ui.providers.allFsa
+                : fill(ui.providers.fromFsa, {
+                    amount: formatMoney(chosen.fromFsa),
+                  })
+            }`}
         </p>
       </header>
 
@@ -328,7 +336,7 @@ function Details({ data }: { data: CarePlanData }) {
                   {fill(ui.careplan.optionRow, {
                     date: formatISODate(o.date),
                     path: path(o.path),
-                    cost: formatMoney(o.cost.mean),
+                    cost: formatMoney(owed(o).total),
                     risk: pct(o.escalation_probability),
                   })}
                   <span className="quiet"> · {option_labels(o.labels)}</span>
@@ -379,7 +387,7 @@ function Details({ data }: { data: CarePlanData }) {
             {fill(ui.careplan.riskier, {
               date: formatISODate(data.beyond_tolerance.date),
               path: path(data.beyond_tolerance.path),
-              cost: formatMoney(data.beyond_tolerance.cost.mean),
+              cost: formatMoney(owed(data.beyond_tolerance).total),
               extra: formatMoney(data.beyond_tolerance_savings?.mean ?? 0),
               risk: pct(data.beyond_tolerance.escalation_probability),
             })}

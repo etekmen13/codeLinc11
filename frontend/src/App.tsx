@@ -22,7 +22,7 @@ import { Coverage } from "./sections/Coverage";
 import { Opening } from "./sections/Opening";
 import { Providers } from "./sections/Providers";
 import { Recap } from "./sections/Recap";
-import { SimIntro, SimSummary } from "./sections/Simulation";
+import { SimIntro, SimStage, SimSummary } from "./sections/Simulation";
 import { riskSpread } from "./state/selectors";
 import { useStore } from "./state/store";
 import { useDataSync } from "./state/useDataSync";
@@ -60,8 +60,12 @@ function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
   useAdvance(flow);
   useScrollTarget(flow);
   const spread = useStore(riskSpread);
-  const currentId = useStore((s) => s.currentStopId);
-  const currentIndex = flow.stops.findIndex((s) => s.id === currentId);
+  // The maroon stage fully covers the field while the futures play.
+  const staged = useStore(
+    (s) =>
+      s.currentStopId === "sim_intro" &&
+      (s.simStage === "playing" || s.simStage === "done"),
+  );
 
   // Consecutive stops of one section share a <section>.
   const groups: { id: SectionId; stops: Stop[] }[] = [];
@@ -73,16 +77,12 @@ function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
 
   return (
     <>
-      <TrajectoryField spread={spread} />
+      <TrajectoryField spread={spread} paused={staged} />
       <main className="page" aria-hidden={acute || undefined} inert={acute}>
         {groups.map((g) => (
           <SectionView key={g.id} id={g.id}>
             {g.stops.map((stop) => (
-              <StopView
-                key={stop.id}
-                stop={stop}
-                reached={flow.stops.indexOf(stop) <= currentIndex}
-              />
+              <StopView key={stop.id} stop={stop} />
             ))}
           </SectionView>
         ))}
@@ -90,6 +90,7 @@ function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
       </main>
       {!acute && (
         <>
+          <SimStage />
           <NarrationOverlay stops={flow.stops} hidden={false} />
           <ProgressRail stops={flow.stops} />
           <AnnualMaxMeter />
@@ -114,7 +115,7 @@ function SectionView({ id, children }: { id: SectionId; children: ReactNode }) {
   );
 }
 
-function StopView({ stop, reached }: { stop: Stop; reached: boolean }) {
+function StopView({ stop }: { stop: Stop }) {
   const { registerStop } = useScroll();
   const ref = useCallback(
     (el: HTMLDivElement | null) => registerStop(stop.id, el),
@@ -125,7 +126,7 @@ function StopView({ stop, reached }: { stop: Stop; reached: boolean }) {
       {stop.id === "intro" && <Opening />}
       {stop.kind === "coverage" && <Coverage />}
       {stop.kind === "recap" && <Recap />}
-      {stop.kind === "sim_intro" && <SimIntro reached={reached} />}
+      {stop.kind === "sim_intro" && <SimIntro />}
       {stop.kind === "sim_summary" && <SimSummary />}
       {stop.kind === "providers" && <Providers />}
       {stop.kind === "careplan" && <CarePlan />}

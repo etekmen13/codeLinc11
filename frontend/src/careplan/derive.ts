@@ -22,6 +22,54 @@ export function addDays(iso: string, days: number): string {
   return isoDate(d);
 }
 
+// What the member would owe the dentists for an option (expected over the
+// futures), and how much of that the FSA would pay. Show this as "you'd
+// pay". The backend's `cost` is only the new money spent after FSA and tax:
+// it counts an existing FSA balance as free (it would be forfeited anyway),
+// so it reads $0 whenever the balance covers the bill. It's right for
+// ranking options, not for telling someone what they'll pay.
+export function owed(option: CarePlanOption): {
+  total: number;
+  fromFsa: number;
+} {
+  return {
+    total: option.member_share.mean,
+    fromFsa: option.fsa.from_balance + option.fsa.from_election,
+  };
+}
+
+// How an option's bill splits, expected over the tooth's futures: what the
+// plan pays, what the member owes (the balance bill included), and what the
+// dentist writes off (the in-network or cash discount).
+export interface BillSplit {
+  fee: number;
+  planPays: number;
+  youPay: number;
+  balance: number;
+  writtenOff: number;
+}
+
+export function billSplit(option: CarePlanOption): BillSplit {
+  let fee = 0;
+  let planPays = 0;
+  let youPay = 0;
+  let balance = 0;
+  for (const o of option.outcomes)
+    for (const line of o.visit.lines) {
+      fee += o.probability * line.provider_fee;
+      planPays += o.probability * line.plan_pays;
+      youPay += o.probability * line.you_pay;
+      balance += o.probability * line.balance_billing;
+    }
+  return {
+    fee,
+    planPays,
+    youPay,
+    balance,
+    writtenOff: Math.max(0, fee - planPays - youPay),
+  };
+}
+
 // Expected plan payment for an option, averaged over the tooth's futures.
 export function expectedPlanPays(option: CarePlanOption): number {
   return option.outcomes.reduce(

@@ -25,11 +25,14 @@ export function Lincoln({ stops, acute }: { stops: Stop[]; acute: boolean }) {
   const loading = useStore((s) =>
     stop ? (loadingFor[stop.kind]?.(s) ?? false) : false,
   );
+  const staged = useStore(
+    (s) => s.currentStopId === "sim_intro" && s.simStage !== "idle",
+  );
 
   // The acute takeover: concerned, with no reactions.
   const view: LincolnView = acute
     ? { presence: "full", expression: beats.acute_takeover.expression }
-    : lincolnView(stop, reaction, loading);
+    : lincolnView(stop, reaction, loading, staged);
 
   // Entrance: start offstage, then slide in on the first frame after paint.
   const [entered, setEntered] = useState(false);
@@ -44,22 +47,7 @@ export function Lincoln({ stops, acute }: { stops: Stop[]; acute: boolean }) {
     };
   }, []);
 
-  // A held stop keeps him at full size for holdMs, then lets him go. The
-  // hold restarts each time the stop is reached.
-  const holdKey = view.holdMs ? (stop?.id ?? null) : null;
-  const [released, setReleased] = useState<string | null>(null);
-  useEffect(() => {
-    if (!holdKey) return;
-    const t = window.setTimeout(() => setReleased(holdKey), view.holdMs);
-    return () => {
-      window.clearTimeout(t);
-      setReleased(null);
-    };
-  }, [holdKey, view.holdMs]);
-
-  let presence = view.presence;
-  if (holdKey && released !== holdKey) presence = "full";
-  if (!entered) presence = "away";
+  const presence = entered ? view.presence : "away";
 
   return (
     <div

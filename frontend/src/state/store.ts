@@ -10,6 +10,7 @@ import type {
   MemberInput,
 } from "../api";
 import type { Reaction } from "../narrative/script";
+import type { StagePhase } from "../simulation/playbackConfig";
 import type {
   CareComparison,
   CarePlan,
@@ -136,6 +137,9 @@ export interface AppState {
   radius: number;
   tolerance: string; // a risk band name
   credential: string | null; // null = any
+  // Count the member's FSA when pricing dentists and the care plan. Off
+  // plans as if there were no FSA.
+  useFsa: boolean;
   providerId: string | null;
   timingId: string | null; // chosen timing plan; null = lowest cost
 
@@ -150,6 +154,11 @@ export interface AppState {
   currentStopId: string;
   retry: number; // bump to resend every request
   simReplay: number; // bump to replay the futures animation
+  // The maroon simulation stage: idle (white page), dark (ground fading to
+  // maroon), playing, done (Next and Replay on offer).
+  simStage: StagePhase;
+  // "stopId:beatId" of the last narrator line fully typed out.
+  lineDone: string | null;
 
   setAnswers: (patch: Partial<Answers>) => void;
   patch: (patch: Partial<AppState>) => void;
@@ -168,6 +177,7 @@ export const useStore = create<AppState>()((set) => ({
   radius: 25,
   tolerance: "low",
   credential: null,
+  useFsa: true,
   providerId: null,
   timingId: null,
   reaction: null,
@@ -176,6 +186,8 @@ export const useStore = create<AppState>()((set) => ({
   currentStopId: "intro",
   retry: 0,
   simReplay: 0,
+  simStage: "idle",
+  lineDone: null,
 
   setAnswers: (patch) => set((s) => ({ answers: { ...s.answers, ...patch } })),
   patch: (patch) => set(patch),
@@ -186,8 +198,10 @@ export const useStore = create<AppState>()((set) => ({
       providerId: null,
       timingId: null,
       credential: null,
+      useFsa: true,
       reaction: null,
       advanceFrom: null,
+      simStage: "idle",
       scrollTarget: "intro",
     }),
 }));

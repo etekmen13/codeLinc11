@@ -1,22 +1,19 @@
-// Providers: two rows, in network above and out of network below, each
-// sorted by what you'd pay. On wide screens the section pins and the rows
-// scroll sideways with the page; on narrow screens and under reduced
-// motion they stack.
+// Providers: two columns, in network beside out of network, each sorted by
+// what you'd pay. A row is a dentist's name, distance and one figure, with a
+// bar of how their bill splits; the rest shows on hover or focus. On narrow
+// screens the columns stack.
 
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { useRef, type ReactNode } from "react";
-import { expectedPlanPays } from "../careplan/derive";
+import { type ReactNode } from "react";
+import { billSplit, owed, type BillSplit } from "../careplan/derive";
 import { band_label } from "../lib/labels";
 import { formatISODate, formatMoney } from "../lib/coverage";
-import { prefersReducedMotion } from "../motion/config";
 import { procedurePhrases, ui } from "../narrative/script";
 import { fill, parts } from "../narrative/template";
 import { editFrom } from "../narrative/useAdvance";
 import { useScroll } from "../scroll/ScrollProvider";
-import { procedure } from "../state/selectors";
+import { procedure, samplePlan } from "../state/selectors";
 import { useStore } from "../state/store";
-import type { DentistOption, ProviderCard } from "../types";
+import type { DentistOption } from "../types";
 import { InlineChoice } from "../ui/InlineChoice";
 
 const RADII = [5, 10, 25, 50];
@@ -28,17 +25,16 @@ export function Providers() {
   const tolerance = useStore((s) => s.tolerance);
   const credential = useStore((s) => s.credential);
   const providerId = useStore((s) => s.providerId);
+  const useFsa = useStore((s) => s.useFsa);
+  const fsa = useStore((s) => samplePlan(s)?.default_member.fsa ?? null);
   const proc = useStore(procedure);
   const patch = useStore((s) => s.patch);
-  const pin = useRef<HTMLDivElement>(null);
-  const rows = useRef<(HTMLDivElement | null)[]>([]);
 
   const data = remote.data?.comparison;
-  const quotes = remote.data?.quotes ?? [];
   const keep = (d: DentistOption) =>
     !credential || d.credentials.includes(credential);
-  const inNet = (data?.in_network ?? []).filter(keep);
-  const outNet = (data?.out_of_network ?? []).filter(keep);
+  const inNet = (data?.in_network ?? []).filter(keep).sort(byOwed);
+  const outNet = (data?.out_of_network ?? []).filter(keep).sort(byOwed);
   const credentials = [
     ...new Set(
       [...(data?.in_network ?? []), ...(data?.out_of_network ?? [])].flatMap(
@@ -46,39 +42,10 @@ export function Providers() {
       ),
     ),
   ].sort();
-  const layoutKey = `${inNet.length}|${outNet.length}|${remote.key}`;
-
-  useGSAP(
-    () => {
-      if (prefersReducedMotion()) return;
-      const mm = gsap.matchMedia();
-      mm.add("(min-width: 768px)", () => {
-        const els = rows.current.filter((r): r is HTMLDivElement => !!r);
-        const overflow = (el: HTMLElement) =>
-          Math.max(0, el.scrollWidth - el.clientWidth);
-        const longest = () => Math.max(0, ...els.map(overflow));
-        if (longest() < 1) return;
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: pin.current,
-            pin: true,
-            start: "top top",
-            end: () => `+=${longest()}`,
-            scrub: true,
-            invalidateOnRefresh: true,
-          },
-        });
-        els.forEach((el) =>
-          tl.to(
-            el.firstElementChild,
-            { x: () => -overflow(el), ease: "none" },
-            0,
-          ),
-        );
-      });
-      return () => mm.revert();
-    },
-    { dependencies: [layoutKey], revertOnUpdate: true },
+  // Bars share one scale, so a longer bar is a bigger bill.
+  const maxFee = Math.max(
+    1,
+    ...[...inNet, ...outNet].map((d) => billSplit(d.lowest_cost).fee),
   );
 
   const choose = (id: string) => {
@@ -144,9 +111,8 @@ export function Providers() {
   };
 
   return (
-    <div className="providers" ref={pin}>
+    <div className="providers">
       <div className="providers__head">
-        <p className="margin-note providers__intro">{ui.providers.intro}</p>
         <p className="providers__filters">
           {parts(ui.providers.filters).map((p, i) =>
             "text" in p ? (
@@ -156,6 +122,28 @@ export function Providers() {
             ),
           )}
         </p>
+        <div className="providers__tools">
+          {fsa && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={useFsa}
+              className="switch"
+              onClick={() => patch({ useFsa: !useFsa })}
+            >
+              <span className="switch__track" aria-hidden="true">
+                <span className="switch__thumb" />
+              </span>
+              {ui.providers.fsa}
+              <span className="quiet tabular">
+                {fill(ui.providers.fsaBalance, {
+                  amount: formatMoney(fsa.balance),
+                })}
+              </span>
+            </button>
+          )}
+          <Legend />
+        </div>
         <div aria-live="polite">
           {remote.loading && <p className="quiet">{ui.providers.loading}</p>}
           {remote.problems && (
@@ -174,131 +162,193 @@ export function Providers() {
           )}
         </div>
       </div>
-      <div className="providers__rows" data-loading={remote.loading}>
+      <div className="providers__columns" data-loading={remote.loading}>
         {[
-          { label: ui.providers.inNetwork, list: inNet },
-          { label: ui.providers.outOfNetwork, list: outNet },
-        ].map((row, r) => (
+          {
+            id: "in",
+            label: ui.providers.inNetwork,
+            note: ui.providers.inNetworkNote,
+            list: inNet,
+          },
+          {
+            id: "out",
+            label: ui.providers.outOfNetwork,
+            note: ui.providers.outOfNetworkNote,
+            list: outNet,
+          },
+        ].map((col) => (
           <section
-            className="provider-row"
-            key={row.label}
-            aria-label={row.label}
+            className="provider-col"
+            key={col.id}
+            aria-labelledby={`provider-col-${col.id}`}
           >
-            <h2 className="provider-row__label">{row.label}</h2>
-            <div
-              className="provider-row__viewport"
-              ref={(el) => {
-                rows.current[r] = el;
-              }}
-            >
-              <div className="provider-row__track">
-                {row.list.length === 0 && data && (
-                  <p className="quiet">{ui.providers.none}</p>
-                )}
-                {row.list.map((d) => (
-                  <ProviderBlock
-                    key={d.provider_id}
-                    dentist={d}
-                    quote={quotes.find((q) => q.id === d.provider_id)}
-                    selected={providerId === d.provider_id}
-                    onChoose={() => choose(d.provider_id)}
-                  />
-                ))}
-              </div>
-            </div>
+            <header className="provider-col__head">
+              <h2 className="provider-col__label" id={`provider-col-${col.id}`}>
+                {col.label}
+              </h2>
+              <p className="quiet">{col.note}</p>
+            </header>
+            {col.list.length === 0 && data && (
+              <p className="quiet">{ui.providers.none}</p>
+            )}
+            <ol className="provider-col__list">
+              {col.list.map((d) => (
+                <ProviderEntry
+                  key={d.provider_id}
+                  dentist={d}
+                  asOf={data?.as_of ?? ""}
+                  maxFee={maxFee}
+                  selected={providerId === d.provider_id}
+                  onChoose={() => choose(d.provider_id)}
+                />
+              ))}
+            </ol>
           </section>
         ))}
-        <p className="quiet providers__foot">{ui.providers.fsaNote}</p>
       </div>
     </div>
   );
 }
 
-function ProviderBlock({
+// What you'd owe the dentist, then the backend's net cost, then distance.
+function byOwed(a: DentistOption, b: DentistOption): number {
+  return (
+    owed(a.lowest_cost).total - owed(b.lowest_cost).total ||
+    a.lowest_cost.cost.mean - b.lowest_cost.cost.mean ||
+    a.distance_miles - b.distance_miles
+  );
+}
+
+function ProviderEntry({
   dentist: d,
-  quote,
+  asOf,
+  maxFee,
   selected,
   onChoose,
 }: {
   dentist: DentistOption;
-  quote?: ProviderCard;
+  asOf: string;
+  maxFee: number;
   selected: boolean;
   onChoose: () => void;
 }) {
-  const youPay = d.lowest_cost.cost.mean;
-  const planPays = expectedPlanPays(d.lowest_cost);
-  const c = quote?.cost;
+  const option = d.lowest_cost;
+  // What you'd owe the dentist. The FSA is a way to pay it, not a discount,
+  // so its part is noted rather than subtracted.
+  const { total: youPay, fromFsa } = owed(option);
+  const split = billSplit(option);
+  const cash = option.path === "cash";
+  const later = asOf !== "" && option.date !== asOf;
+  const money = (n: number) => formatMoney(n);
+
+  // At rest: distance, plus a word when the price is cash or on a later date.
+  const meta = [
+    fill(ui.providers.miles, { n: d.distance_miles }),
+    cash && ui.providers.cash,
+    later && formatISODate(option.date),
+  ].filter(Boolean);
+
+  // On hover or focus: how the bill splits, and the credentials.
+  const details = [
+    fill(ui.providers.billed, { amount: money(split.fee) }),
+    fill(ui.providers.planPays, { amount: money(split.planPays) }),
+    split.balance >= 0.5 &&
+      fill(ui.providers.balanceBill, { amount: money(split.balance) }),
+    split.writtenOff >= 0.5 &&
+      fill(cash ? ui.providers.cashWaived : ui.providers.waived, {
+        amount: money(split.writtenOff),
+      }),
+    d.credentials.join(", "),
+  ].filter(Boolean);
+
   return (
-    <article className="provider" data-selected={selected}>
-      <h3 className="provider__name">
-        <button
-          type="button"
-          className="provider__choose"
-          aria-pressed={selected}
-          onClick={onChoose}
+    <li className="provider" data-selected={selected}>
+      <div className="provider__who">
+        <h3 className="provider__name">
+          <button
+            type="button"
+            className="provider__choose"
+            aria-pressed={selected}
+            onClick={onChoose}
+          >
+            <span className="sr-only">{ui.providers.choose} </span>
+            {d.name}
+          </button>
+        </h3>
+        <p className="provider__meta tabular">{meta.join(" · ")}</p>
+      </div>
+      <div className="provider__price">
+        <p
+          className="figure tabular"
+          aria-label={`${ui.providers.youPay} ${money(youPay)}`}
         >
-          <span className="sr-only">{ui.providers.choose} </span>
-          {d.name}
-        </button>
-      </h3>
-      <p className="provider__meta">
-        <span className="tabular">{d.distance_miles} mi</span> ·{" "}
-        {d.credentials.join(", ")}
-      </p>
-      <p
-        className="figure tabular"
-        aria-label={`${ui.providers.youPay} ${formatMoney(youPay)}`}
-      >
-        {formatMoney(youPay)}
-      </p>
-      <p className="provider__sub">
-        {fill(ui.providers.planPays, { amount: formatMoney(planPays) })} ·{" "}
-        {fill(ui.providers.onDate, { date: formatISODate(d.lowest_cost.date) })}
-      </p>
-      {!d.in_network && c && c.balance_billing > 0 && (
-        <>
-          <CostBar
-            planPays={c.plan_pays}
-            youPay={c.you_pay}
-            gap={c.balance_billing}
-          />
-          <p className="margin-note provider__note">
-            {fill(ui.terms.term_balance_billing, {
-              allowedAmount: formatMoney(c.allowed_amount),
-              fee: formatMoney(c.provider_fee),
-              gap: formatMoney(c.balance_billing),
-            })}
+          {money(youPay)}
+        </p>
+        {fromFsa >= 0.5 && (
+          <p className="provider__fsa tabular">
+            {youPay - fromFsa < 0.5
+              ? ui.providers.allFsa
+              : fill(ui.providers.fromFsa, { amount: money(fromFsa) })}
           </p>
-        </>
-      )}
-    </article>
+        )}
+      </div>
+      <BillBar split={split} maxFee={maxFee} />
+      <p className="provider__note">{details.join(" · ")}</p>
+    </li>
   );
 }
 
-// Today's bill split three ways; the balance bill is the orange sliver.
-function CostBar({
-  planPays,
-  youPay,
-  gap,
-}: {
-  planPays: number;
-  youPay: number;
-  gap: number;
-}) {
-  const share = Math.max(0, youPay - gap);
+// The expected bill as one bar, as long as the bill relative to the largest
+// one shown: plan pays, you pay, the balance bill (orange), and what the
+// dentist waives.
+function BillBar({ split, maxFee }: { split: BillSplit; maxFee: number }) {
+  const segments = [
+    ["plan", split.planPays],
+    ["you", Math.max(0, split.youPay - split.balance)],
+    ["gap", split.balance],
+    ["waived", split.writtenOff],
+  ] as const;
   return (
-    <div
-      className="cost-bar"
-      role="img"
-      aria-label={fill(ui.providers.barLabel, {
-        planPays: formatMoney(planPays),
-        share: formatMoney(share),
-        gap: formatMoney(gap),
-      })}
-    >
-      <span className="cost-bar__plan" style={{ flexGrow: planPays }} />
-      <span className="cost-bar__you" style={{ flexGrow: share }} />
-      <span className="cost-bar__gap" style={{ flexGrow: gap }} />
+    <div className="bill-bar" aria-hidden="true">
+      <div
+        className="bill-bar__fill"
+        style={{ width: `${(split.fee / maxFee) * 100}%` }}
+      >
+        {segments.map(
+          ([kind, amount]) =>
+            amount >= 0.5 && (
+              <span
+                key={kind}
+                className={`bill-bar__${kind}`}
+                style={{ flexGrow: amount }}
+              />
+            ),
+        )}
+      </div>
     </div>
+  );
+}
+
+function Legend() {
+  const l = ui.providers.legend;
+  return (
+    <ul className="bill-legend" aria-hidden="true">
+      <li>
+        <span className="bill-bar__plan" />
+        {l.plan}
+      </li>
+      <li>
+        <span className="bill-bar__you" />
+        {l.you}
+      </li>
+      <li>
+        <span className="bill-bar__gap" />
+        {l.gap}
+      </li>
+      <li>
+        <span className="bill-bar__waived" />
+        {l.waived}
+      </li>
+    </ul>
   );
 }

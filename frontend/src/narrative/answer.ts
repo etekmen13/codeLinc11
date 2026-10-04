@@ -51,10 +51,10 @@ export function answer(stop: Stop, option: OptionView): void {
     setAnswers({ quiz: { ...answers.quiz, [id.slice(5)]: option.value } });
   else if (id === "recap") setAnswers({ recapDone: true });
   else if (id === "tooth_done") setAnswers({ toothDone: true });
-  else if (id === "sim_intro") {
+  else if (id === "sim_played") {
     if (option.value === "replay") {
-      s.patch({ simReplay: s.simReplay + 1 });
-      return; // stays on this beat
+      s.patch({ simReplay: s.simReplay + 1, simStage: "playing" });
+      return; // stays on this stop
     }
     setAnswers({ simIntroDone: true });
   } else if (id === "sim_summary" || id === "sim_summary_terminal")

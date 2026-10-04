@@ -64,6 +64,8 @@ class OnboardingRequest(BaseModel):
     quiz_answers: dict[str, str]  # question id -> option id
     coverage: CoverageInput | None = None
     member: MemberInput | None = None
+    # False plans as if the member had no FSA.
+    use_fsa: bool = True
 
 
 @dataclass(frozen=True)
@@ -129,6 +131,8 @@ def validate_onboarding(req: OnboardingRequest) -> Onboarded:
             amount_used=m.amount_used,
             deductible_met=m.deductible_met,
         )
+    if not req.use_fsa:
+        member = replace(member, fsa=None)
     if (
         member.amount_used > plan.annual_maximum
         or member.deductible_met > plan.deductible
