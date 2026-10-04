@@ -312,18 +312,21 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
     # second into the next benefit year. No FSA, so the difference shows in
     # full.
     SamplePlan(
-        # Staggering wins. The first filling took the last $120 of a $1,000
-        # maximum, so a second one today is all out of pocket ($150). The
-        # benefit year starts November 1, so a month from now the maximum
-        # resets and it costs $70 after a new $50 deductible. A short wait
-        # keeps the cavity's risk of getting worse low.
+        # Staggering wins, unless the tooth is likely to get worse. The first
+        # filling took the last $120 of a $1,000 maximum, so a second one
+        # today is all out of pocket ($150 at the plan's price). The benefit
+        # year starts November 1, so a month from now the maximum resets
+        # and it costs $30 (fillings skip the deductible on this plan). With
+        # low-risk quiz answers that wins even counting the worst cases; with
+        # high-risk answers the chance of a root canal first tips it back to
+        # today.
         Plan(
             id="summit-value",
             insurer="Delta Dental",
             plan_name="Demo Value PPO",
             annual_maximum=1000,
             deductible=50,
-            deductible_applies_to=frozenset({"basic", "major"}),
+            deductible_applies_to=frozenset({"major"}),
             coinsurance={"preventive": 1.0, "basic": 0.8, "major": 0.5},
             waiting_period_months={"preventive": 0, "basic": 0, "major": 0},
             frequency_limits=(

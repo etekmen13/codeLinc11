@@ -496,3 +496,44 @@ def test_a_membership_price_can_beat_waiting():
         x for x in medium.in_network if x.provider_id == "steele-creek-family"
     )
     assert steele.lowest_cost.path == "cash"
+
+
+# The two staggering stories: a second filling at Uptown, the first one done
+# today.
+
+
+def test_staggering_into_the_reset_saves_on_the_value_plan():
+    # Summit Value: the maximum is used up, so today the filling is all yours
+    # (A = 150). It resets November 1; on the 4th the plan pays 80% with no
+    # deductible on fillings, so you owe 30.
+    o = onboarded("summit-value", "D2391")
+    sim = fake_sim(o)
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    assert plan.baseline.member_share.mean == 15000
+    assert (plan.lowest_cost.date, plan.lowest_cost.member_share.mean) == (
+        date(2026, 11, 4),
+        3000,
+    )
+
+
+def test_a_likely_root_canal_makes_waiting_cost_more_on_the_value_plan():
+    # Same plan, but a third of futures need a root canal by the reset.
+    o = onboarded("summit-value", "D2391")
+    sim = fake_sim(o, "root_canal", share=0.3, from_month=1)
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    assert plan.lowest_cost.date == o.as_of
+
+
+def test_staggering_costs_more_on_the_standard_plan():
+    # Keystone Standard: this year's deductible is met, so today you owe 20%
+    # of 155 = 31. After the January reset a new $100 deductible applies:
+    # 100 + 20% of 55 = 111.
+    o = onboarded("keystone-standard", "D2391")
+    sim = fake_sim(o)
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    assert (plan.lowest_cost.date, plan.lowest_cost.member_share.mean) == (
+        o.as_of,
+        3100,
+    )
+    after = next(x for x in plan.options if "after_plan_reset" in x.labels)
+    assert after.member_share.mean == 11100
