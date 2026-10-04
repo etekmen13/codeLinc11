@@ -42,6 +42,7 @@ frontend/
 ## Formatting and linting
 
 - Python: `uv run ruff format` and `uv run ruff check` (from `backend/`)
+- Python tests: `uv run pytest` (from `backend/`)
 - TypeScript: `npm run lint` (from `frontend/`)
 
 In VS Code, format on save is configured in `.vscode/settings.json`. Install the Ruff and Prettier extensions.

@@ -22,9 +22,15 @@ export interface Plan {
   waiting_period_months: Record<InsuranceType, number>;
   frequency_limits: FrequencyLimit[];
   plan_year_start: string; // ISO date the reset date is one year later
+  in_network_fees: Record<string, number>; // CDT code, negotiated fee
   out_of_network_allowed: Record<string, number>; // CDT code, allowed amount
   subscriber_id_pattern: string;
   subscriber_id_example: string;
+}
+
+export interface PastService {
+  cdt_code: string;
+  date_of_service: string; // ISO date
 }
 
 export interface MemberStatus {
@@ -32,6 +38,7 @@ export interface MemberStatus {
   coverage_start: string; // ISO date, waiting periods count from here
   amount_used: number; // this plan year
   deductible_met: number; // this plan year
+  past_services: PastService[]; // oldest first; frequency limits count these
 }
 
 export interface Procedure {

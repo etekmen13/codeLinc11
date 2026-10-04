@@ -24,6 +24,7 @@ from catalog import (
     PROCEDURES_BY_CODE,
     SAMPLE_PLANS,
     MemberStatus,
+    PastService,
     Plan,
     Procedure,
     SamplePlan,
@@ -115,6 +116,7 @@ class MemberOut(BaseModel):
     coverage_start: str
     amount_used: float
     deductible_met: float
+    past_services: list[PastService]
 
 
 class OnboardingOut(BaseModel):
