@@ -15,7 +15,7 @@ onboarding answers and is validated with validate_onboarding.
 """
 
 import math
-from datetime import UTC, date, datetime
+from datetime import date
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -110,11 +110,12 @@ def find_providers(
 ) -> ProvidersOut:
     """Dentists within `radius_miles` that do the procedure, in two columns,
     each sorted by what you pay (cheapest first). date_of_service defaults
-    to today; a later plan year resets the deductible and maximum."""
+    to the member's as_of date; a later plan year resets the deductible and
+    maximum."""
     procedure = PROCEDURES_BY_CODE.get(procedure_code)
     if procedure is None:
         raise ValueError(f"unknown procedure {procedure_code!r}")
-    dos = date_of_service or datetime.now(UTC).astimezone().date()  # local today
+    dos = date_of_service or date.fromisoformat(member.as_of)
     state = cost.initial_state(plan, member)
 
     in_network: list[ProviderCard] = []
@@ -148,7 +149,7 @@ def find_providers(
 
 class ProvidersRequest(OnboardingRequest):
     radius_miles: float = Field(25.0, gt=0)
-    date_of_service: date | None = None  # defaults to today
+    date_of_service: date | None = None  # defaults to the member's as_of
 
 
 router = APIRouter(prefix="/api", tags=["providers"])

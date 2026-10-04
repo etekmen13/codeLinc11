@@ -25,7 +25,7 @@ export interface OnboardingRequest {
 
 export interface ProvidersRequest extends OnboardingRequest {
   radius_miles?: number; // default 25
-  date_of_service?: string; // ISO date, default today
+  date_of_service?: string; // ISO date, default the member's as_of
 }
 
 // FastAPI sends {"detail": "..."} or {"detail": ["...", ...]} from

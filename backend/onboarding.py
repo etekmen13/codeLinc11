@@ -12,6 +12,7 @@ from /docs.
 """
 
 from dataclasses import dataclass
+from datetime import date
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -50,6 +51,9 @@ class Onboarded:
     subscriber_id: str
     procedure: Procedure
     quiz_answers: dict[str, str]
+    # The single "today" for everything downstream. From the sample member
+    # now; real form input would set it here.
+    as_of: date
 
 
 class InvalidOnboarding(ValueError):
@@ -89,6 +93,7 @@ def validate_onboarding(req: OnboardingRequest) -> Onboarded:
         subscriber_id=subscriber_id,
         procedure=procedure,
         quiz_answers=dict(req.quiz_answers),
+        as_of=date.fromisoformat(sample.default_member.as_of),
     )
 
 
@@ -113,6 +118,7 @@ class QuestionOut(BaseModel):
 
 class MemberOut(BaseModel):
     subscriber_id: str
+    as_of: str
     coverage_start: str
     amount_used: float
     deductible_met: float

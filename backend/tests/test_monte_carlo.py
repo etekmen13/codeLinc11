@@ -166,6 +166,11 @@ def test_check_bands_rejects_bad_configs(bands):
         check_bands(bands)
 
 
+def test_simulation_starts_on_the_members_as_of_date():
+    o = onboarded("D2391")
+    assert simulate(o, n_samples=100).start_date == o.as_of
+
+
 def test_app_still_has_main():
     from fastapi.testclient import TestClient
 

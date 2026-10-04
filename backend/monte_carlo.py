@@ -8,13 +8,14 @@ Output: numpy arrays (paths, dist, risk). No fees or insurance here: the
 
 Main entry: simulate(onboarded) runs the onboarding's tooth through the
 progression model and returns a SimulationResult. States are
-progression.STATES; month 0 is today.
+progression.STATES; month 0 is the member's as_of date.
 
 Risk bands describe how likely the tooth is to be worse than it is now. They
 are information for the employee, not a treatment recommendation.
 """
 
 from dataclasses import dataclass
+from datetime import date
 from itertools import pairwise
 from typing import ClassVar
 
@@ -187,7 +188,7 @@ def outcome_summary(
 
 @dataclass(frozen=True)
 class SimulationResult:
-    """How one untreated tooth may progress, month by month from today.
+    """How one untreated tooth may progress, month by month from start_date.
 
     For the sequencer: the expected cost of treating at month t is the sum
     over states s of dist[t, s] times the cost of treating s on that date.
@@ -197,6 +198,7 @@ class SimulationResult:
 
     states: ClassVar[tuple[str, ...]] = STATES
     start_state: str
+    start_date: date  # month 0: the onboarding's as_of date
     dist: NDArray[np.float64]  # (horizon+1, n_states): P(state s at month t)
     risk: NDArray[np.float64]  # (horizon+1,): P(worse than start_state at month t)
     paths: NDArray[np.int64]  # (horizon+1, n_samples): state index of each future
@@ -229,6 +231,7 @@ def simulate(
     )
     return SimulationResult(
         start_state=onboarded.procedure.treats_state,
+        start_date=onboarded.as_of,
         dist=dist,
         risk=risk,
         paths=paths,

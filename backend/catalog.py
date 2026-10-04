@@ -53,6 +53,9 @@ class MemberStatus:
     """Per-employee state. In v0 each sample plan ships with a default member;
     a real system would look this up by subscriber ID."""
 
+    # ISO date the balances below describe. The single "today" for the
+    # backend: simulations start here and pricing defaults to it.
+    as_of: str
     coverage_start: str  # ISO date; waiting periods count from here
     amount_used: float  # this plan year
     deductible_met: float  # this plan year
@@ -90,6 +93,9 @@ class Provider:
     fees: dict[str, float]  # procedure code -> billed fee; missing = not offered
     cash_prices: dict[str, float]  # procedure code -> self-pay price; missing = none
 
+
+# The date every sample member's balances describe.
+SAMPLE_AS_OF = "2026-10-01"
 
 SAMPLE_PLANS: tuple[SamplePlan, ...] = (
     SamplePlan(
@@ -132,6 +138,7 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_example="SMT-4821937",
         ),
         MemberStatus(
+            as_of=SAMPLE_AS_OF,
             coverage_start="2025-01-01",
             amount_used=350,
             deductible_met=50,
@@ -183,7 +190,12 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_pattern=r"HB\d{9}",
             subscriber_id_example="HB302118774",
         ),
-        MemberStatus(coverage_start="2026-07-01", amount_used=0, deductible_met=0),
+        MemberStatus(
+            as_of=SAMPLE_AS_OF,
+            coverage_start="2026-07-01",
+            amount_used=0,
+            deductible_met=0,
+        ),
     ),
     SamplePlan(
         # Most of the maximum already used: splitting treatment across the
@@ -226,6 +238,7 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_example="K417-2290-08",
         ),
         MemberStatus(
+            as_of=SAMPLE_AS_OF,
             coverage_start="2024-01-01",
             amount_used=1100,
             deductible_met=100,
@@ -477,6 +490,26 @@ def is_valid_subscriber_id(plan: Plan, subscriber_id: str) -> bool:
     return re.fullmatch(plan.subscriber_id_pattern, subscriber_id) is not None
 
 
+def _check_member(s: SamplePlan) -> None:
+    m, pid = s.default_member, s.plan.id
+    as_of = date.fromisoformat(m.as_of)
+    year_start = date.fromisoformat(s.plan.plan_year_start)
+    # amount_used and deductible_met describe the plan year starting
+    # plan_year_start, so as_of must fall inside it.
+    if not year_start <= as_of < year_start.replace(year=year_start.year + 1):
+        raise ValueError(f"plan {pid}: as_of is outside the current plan year")
+    if date.fromisoformat(m.coverage_start) > as_of:
+        raise ValueError(f"plan {pid}: coverage starts after as_of")
+    history = m.past_services
+    if any(h.cdt_code not in PROCEDURES_BY_CODE for h in history):
+        raise ValueError(f"plan {pid}: past service has unknown procedure")
+    dates = [date.fromisoformat(h.date_of_service) for h in history]
+    if dates != sorted(dates):
+        raise ValueError(f"plan {pid}: past services must be oldest first")
+    if dates and dates[-1] > as_of:
+        raise ValueError(f"plan {pid}: past service after as_of")
+
+
 def _check() -> None:
     if len(PLANS_BY_ID) != len(SAMPLE_PLANS):
         raise ValueError("duplicate plan id")
@@ -493,12 +526,7 @@ def _check() -> None:
                 raise ValueError(
                     f"plan {s.plan.id}: fee schedule must price every procedure"
                 )
-        history = s.default_member.past_services
-        if any(h.cdt_code not in PROCEDURES_BY_CODE for h in history):
-            raise ValueError(f"plan {s.plan.id}: past service has unknown procedure")
-        dates = [date.fromisoformat(h.date_of_service) for h in history]
-        if dates != sorted(dates):
-            raise ValueError(f"plan {s.plan.id}: past services must be oldest first")
+        _check_member(s)
     if ALL_PLANS != PLANS_BY_ID.keys():
         raise ValueError("ALL_PLANS is out of date")
     if len(PROVIDERS_BY_ID) != len(PROVIDERS):

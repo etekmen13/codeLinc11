@@ -11,7 +11,7 @@ interface Props {
   procedures: Procedure[];
   procedure_code?: string;
   plan: Plan;
-  member: Pick<MemberStatus, "coverage_start">;
+  member: Pick<MemberStatus, "coverage_start" | "as_of">;
   on_change: (cdt_code: string) => void;
   on_back: () => void;
   on_next: () => void;
@@ -55,7 +55,9 @@ export function ProcedureStep({
             </span>
             <span className="ob-choice-meta">
               <span>{CATEGORY_LABEL[p.category]}</span>
-              <span className="ob-muted">about {formatMoney(p.typical_fee)}</span>
+              <span className="ob-muted">
+                about {formatMoney(p.typical_fee)}
+              </span>
             </span>
           </label>
         ))}

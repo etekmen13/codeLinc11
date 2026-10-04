@@ -35,6 +35,7 @@ export interface PastService {
 
 export interface MemberStatus {
   subscriber_id: string;
+  as_of: string; // ISO date the balances describe; the backend's "today"
   coverage_start: string; // ISO date, waiting periods count from here
   amount_used: number; // this plan year
   deductible_met: number; // this plan year
