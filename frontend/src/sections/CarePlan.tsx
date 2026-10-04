@@ -1,15 +1,20 @@
-// Care plan: one focal number, the timeline with its reset seam, and the
-// bill as a waterfall. Everything else is one "Details" away.
+// Care plan: when to have it. Each timing is a column with one figure; the
+// chosen one's bill is a single bar. The line-by-line bill and everything
+// else are one "Details" away.
 
 import { useState } from "react";
 import { displayText } from "../lib/displayText";
 import {
+  billSplit,
   carePlanView,
+  isoDate,
   mainOutcome,
   meterFigures,
+  owed,
   waterfall,
+  type BillSplit,
 } from "../careplan/derive";
-import { Timeline } from "../careplan/Timeline";
+import type { TimingPlan } from "../careplan/timing";
 import { Waterfall } from "../careplan/Waterfall";
 import { useExplanation } from "../hooks/useExplanation";
 import {
@@ -21,13 +26,17 @@ import {
   waitingPeriodEnds,
 } from "../lib/coverage";
 import { lever_label, option_labels, tooth_state_label } from "../lib/labels";
+import { bandColor } from "../lib/risk";
 import { procedurePhrases, ui } from "../narrative/script";
 import { fill } from "../narrative/template";
 import { carePlanKey, fresh, procedure, samplePlan } from "../state/selectors";
 import { useStore, type AppState } from "../state/store";
-import { isoDate, owed } from "../careplan/derive";
-import { bandColor } from "../lib/risk";
-import type { CarePlan as CarePlanData, CarePlanOption } from "../types";
+import type {
+  CarePlan as CarePlanData,
+  CarePlanOption,
+  RiskBand,
+} from "../types";
+import { BillBar, BillLegend } from "../ui/BillBar";
 
 const pct = (p: number) => Math.round(p * 100);
 const monthsLater = (iso: string, months: number) =>
@@ -75,7 +84,6 @@ export function CarePlan() {
   }
 
   const { data, plans, chosen, resetsOn } = view;
-  const option = chosen.placements[0].option;
   const plan = sample.plan;
   const member = sample.default_member;
   const afterReset = chosen.placements[0].date >= resetsOn;
@@ -90,103 +98,50 @@ export function CarePlan() {
           riskPct: pct(chosen.escalation),
         });
   const waiting = isInWaitingPeriod(plan, member, proc.category);
+  const split = planSplit(chosen);
 
   return (
     <div className="careplan" data-loading={!ready}>
       <header className="careplan__head">
-        <p className="figure figure--xl tabular">{formatMoney(chosen.owed)}</p>
-        <p className="quiet">
-          {fill(ui.careplan.headlineNote, {
+        <h2 className="careplan__title">
+          {fill(ui.careplan.title, {
+            procedure: procedurePhrases[proc.cdt_code] ?? proc.name,
             provider: provider?.name ?? data.provider_id,
-            timing: ui.careplan.timings[chosen.id],
           })}
-          {chosen.fromFsa >= 0.5 &&
-            ` · ${
-              chosen.owed - chosen.fromFsa < 0.5
-                ? ui.providers.allFsa
-                : fill(ui.providers.fromFsa, {
-                    amount: formatMoney(chosen.fromFsa),
-                  })
-            }`}
+        </h2>
+        <p className="quiet">
+          {fill(ui.careplan.resets, { date: formatISODate(resetsOn) })}
         </p>
       </header>
 
-      <Timeline
-        asOf={data.as_of}
-        resetsOn={resetsOn}
-        plans={plans}
-        chosen={chosen}
-        procedureCode={proc.cdt_code}
-        onChoose={(id) => state.patch({ timingId: id })}
-      />
-
-      <div className="careplan__compare">
-        <div className="figure-block">
-          <p className="figure tabular">{formatMoney(Math.abs(savings))}</p>
-          <p className="quiet">
-            {Math.abs(savings) < 0.5
-              ? ui.careplan.sameCost
-              : savings > 0
-                ? ui.careplan.saves
-                : ui.careplan.costsMore}
-          </p>
-        </div>
-        <div className="figure-block">
-          <p
-            className="figure tabular"
-            style={{ color: bandColor(option.band, data.risk_bands) }}
-          >
-            {pct(chosen.escalation)}%
-          </p>
-          <p className="quiet">{ui.careplan.worseFirst}</p>
-        </div>
-        <p className="margin-note careplan__timing-note">{timingNote}</p>
+      <div
+        className="timings"
+        role="group"
+        aria-label={ui.careplan.timingGroup}
+        data-count={plans.length}
+      >
+        {plans.map((p) => (
+          <TimingColumn
+            key={p.id}
+            plan={p}
+            selected={p.id === chosen.id}
+            resetsOn={resetsOn}
+            bands={data.risk_bands}
+            onChoose={() => state.patch({ timingId: p.id })}
+          />
+        ))}
       </div>
 
-      {bill && (
-        <div className="careplan__bill">
-          <Waterfall
-            steps={bill.steps}
-            notes={bill.notes}
-            explainBodies={bill.explainBodies}
-          />
-          <p className="careplan__explain">
-            {!explain && (
-              <button
-                type="button"
-                className="text-link"
-                onClick={() => setExplain(true)}
-              >
-                {ui.careplan.explainCost}
-              </button>
-            )}
-            {costExplanation.loading && (
-              <span className="quiet">{ui.careplan.explaining}</span>
-            )}
-            {costExplanation.text && (
-              <span className="margin-note">
-                {displayText(costExplanation.text)}
-              </span>
-            )}
-            {costExplanation.error && (
-              <span className="quiet">
-                {displayText(costExplanation.error)}
-              </span>
-            )}
-          </p>
-          {waiting && (
-            <p className="margin-note">
-              {fill(ui.terms.term_waiting_period, {
-                category: proc.category,
-                waitingMonths: plan.waiting_period_months[proc.category],
-                eligibleDate: formatISODate(
-                  isoDate(waitingPeriodEnds(plan, member, proc.category)),
-                ),
-              })}
-            </p>
-          )}
-        </div>
-      )}
+      <section className="careplan__bill">
+        <p className="quiet">
+          {fill(ui.careplan.billCaption, {
+            fee: formatMoney(split.fee),
+            timing: ui.careplan.timings[chosen.id],
+          })}
+        </p>
+        <BillBar split={split} large />
+        <BillLegend split={split} />
+      </section>
 
       <button
         type="button"
@@ -196,10 +151,145 @@ export function CarePlan() {
       >
         {details ? ui.careplan.hideDetails : ui.careplan.details}
       </button>
-      {details && <Details data={data} />}
+      {details && (
+        <div className="careplan__details">
+          <p className="careplan__timing-note">{timingNote}</p>
+          {bill && (
+            <section className="careplan__lines">
+              <h3>{ui.careplan.lineByLine}</h3>
+              <Waterfall
+                steps={bill.steps}
+                notes={bill.notes}
+                explainBodies={bill.explainBodies}
+              />
+              <p className="careplan__explain">
+                {!explain && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => setExplain(true)}
+                  >
+                    {ui.careplan.explainCost}
+                  </button>
+                )}
+                {costExplanation.loading && (
+                  <span className="quiet">{ui.careplan.explaining}</span>
+                )}
+                {costExplanation.text && (
+                  <span className="margin-note">
+                    {displayText(costExplanation.text)}
+                  </span>
+                )}
+                {costExplanation.error && (
+                  <span className="quiet">
+                    {displayText(costExplanation.error)}
+                  </span>
+                )}
+              </p>
+              {waiting && (
+                <p className="margin-note">
+                  {fill(ui.terms.term_waiting_period, {
+                    category: proc.category,
+                    waitingMonths: plan.waiting_period_months[proc.category],
+                    eligibleDate: formatISODate(
+                      isoDate(waitingPeriodEnds(plan, member, proc.category)),
+                    ),
+                  })}
+                </p>
+              )}
+            </section>
+          )}
+          <Details data={data} />
+        </div>
+      )}
 
       <p className="fine-print">{ui.careplan.disclaimer}</p>
     </div>
+  );
+}
+
+// A timing plan's bill: its placements' expected bills added up.
+function planSplit(p: TimingPlan): BillSplit {
+  const total: BillSplit = {
+    fee: 0,
+    planPays: 0,
+    youPay: 0,
+    balance: 0,
+    writtenOff: 0,
+  };
+  for (const { option } of p.placements) {
+    const s = billSplit(option);
+    for (const k of Object.keys(total) as (keyof BillSplit)[]) total[k] += s[k];
+  }
+  return total;
+}
+
+// One way to time the care: when, what pays for it, the amount owed, how it
+// compares with now, and the chance the tooth gets worse first. The whole
+// column chooses it.
+function TimingColumn({
+  plan: p,
+  selected,
+  resetsOn,
+  bands,
+  onChoose,
+}: {
+  plan: TimingPlan;
+  selected: boolean;
+  resetsOn: string;
+  bands: RiskBand[];
+  onChoose: () => void;
+}) {
+  const last = p.placements[p.placements.length - 1].option;
+  const when = p.placements
+    .map(({ date, option }) =>
+      fill(ui.careplan.timingDate, {
+        date: formatISODate(date),
+        source:
+          option.path === "cash"
+            ? ui.careplan.cashSource
+            : date >= resetsOn
+              ? ui.careplan.nextYear
+              : ui.careplan.thisYear,
+      }),
+    )
+    .join(" + ");
+  const compare =
+    p.id === "now"
+      ? null
+      : Math.abs(p.savingsVsNow) < 0.5
+        ? ui.careplan.sameCost
+        : fill(p.savingsVsNow > 0 ? ui.careplan.saves : ui.careplan.costsMore, {
+            amount: formatMoney(Math.abs(p.savingsVsNow)),
+          });
+  return (
+    <button
+      type="button"
+      className="timing"
+      aria-pressed={selected}
+      onClick={onChoose}
+    >
+      <span className="timing__label">{ui.careplan.timingLabels[p.id]}</span>
+      <span className="timing__when tabular">{when}</span>
+      <span className="figure tabular timing__figure">
+        {formatMoney(p.owed)}
+      </span>
+      <span className="timing__fsa tabular">
+        {p.fromFsa >= 0.5 &&
+          (p.owed - p.fromFsa < 0.5
+            ? ui.providers.allFsa
+            : fill(ui.providers.fromFsa, { amount: formatMoney(p.fromFsa) }))}
+      </span>
+      <span className="timing__compare tabular">{compare}</span>
+      <span className="timing__risk tabular">
+        <span
+          className="timing__risk-dot"
+          style={{ background: bandColor(last.band, bands) }}
+          aria-hidden="true"
+        />
+        {fill(ui.careplan.worseFirst, { pct: pct(p.escalation) })}
+      </span>
+    </button>
   );
 }
 

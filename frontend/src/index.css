@@ -901,9 +901,21 @@ h3 {
   align-items: center;
   gap: 0.4rem;
 }
-.bill-legend span {
+.bill-legend__swatch {
   width: 0.9rem;
   height: 6px;
+}
+.bill-bar--large .bill-bar__fill {
+  height: 18px;
+  gap: 3px;
+}
+.bill-legend--amounts {
+  gap: 0.75rem 2.5rem;
+  font-size: var(--type-small);
+}
+.bill-legend--amounts strong {
+  font-weight: 600;
+  color: var(--maroon);
 }
 
 /* A two-state switch. */
@@ -956,114 +968,137 @@ h3 {
   box-shadow: 0 0 0 1px var(--maroon-12);
 }
 
-/* Care plan. */
+/* Care plan: centered. A title, the timings as columns, the chosen
+   timing's bill as one bar, then Details. */
 .careplan {
-  padding: 14vh var(--layout-gutter) 18vh;
+  padding: 12vh var(--layout-gutter) 18vh;
   max-width: 76rem;
+  margin: 0 auto;
   display: grid;
-  gap: 4.5rem;
+  justify-items: center;
+  gap: 4rem;
   transition: opacity var(--dur-fade) var(--ease);
 }
 .careplan[data-loading="true"] {
   opacity: 0.5;
 }
-.careplan__head .quiet {
-  margin-top: 0.75rem;
-}
-.timeline {
+.careplan__head {
   display: grid;
-  gap: 2.75rem;
+  gap: 0.9rem;
+  text-align: center;
+  max-width: 44rem;
 }
-.timeline__toggle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
+.careplan__title {
+  font-family: var(--font-display);
+  font-size: var(--type-display-l);
+  font-weight: 380;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
 }
-.timeline__track {
-  position: relative;
-  height: 4.5rem;
-  margin-right: 8rem;
+
+/* Timings: up to three columns side by side; the whole column chooses. */
+.timings {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(var(--count, 3), minmax(0, 1fr));
+  gap: 2rem;
 }
-.timeline__line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: var(--maroon-24);
+.timings[data-count="1"] {
+  --count: 1;
+  max-width: 24rem;
 }
-.timeline__today {
-  position: absolute;
-  bottom: -0.25rem;
-  font-size: var(--type-micro);
-  color: var(--maroon-64);
+.timings[data-count="2"] {
+  --count: 2;
+  max-width: 52rem;
 }
-.timeline__seam {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--maroon);
+.timing {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.5rem;
+  padding: 1.75rem 1.25rem 2rem;
+  text-align: center;
+  border-top: 1px solid var(--maroon-24);
+  transition:
+    border-color var(--dur-fade) var(--ease),
+    background var(--dur-fade) var(--ease);
 }
-.timeline__seam-label {
-  position: absolute;
-  bottom: calc(100% + 0.4rem);
-  left: 0;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: var(--type-micro);
-  color: var(--maroon-64);
+.timing:hover {
+  background: var(--maroon-6);
 }
-.timeline__mark {
-  position: absolute;
-  inset: 0;
-  transition: transform var(--dur-move) var(--ease);
+.timing[aria-pressed="true"] {
+  border-top: 3px solid var(--maroon);
+  background: var(--maroon-6);
 }
-.timeline__dot {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--maroon);
-  transform: translate(-50%, -50%);
+.timing__label {
+  font-family: var(--font-display);
+  font-size: calc(var(--type-narration) * 0.9);
+  font-weight: 420;
+  line-height: 1.2;
 }
-.timeline__mark-label {
-  position: absolute;
-  top: calc(50% + 0.9rem);
-  left: 0;
-  white-space: nowrap;
+.timing__when,
+.timing__fsa,
+.timing__compare,
+.timing__risk {
   font-size: var(--type-small);
+  color: var(--maroon-64);
+  min-height: 1.5em;
+}
+.timing__figure {
+  margin: 0.75rem 0 0.1rem;
+  font-size: var(--type-display-l);
+}
+.timing[aria-pressed="true"] .timing__figure {
+  color: var(--wine);
+}
+.timing__compare {
+  color: var(--maroon);
   font-weight: 500;
 }
-.careplan__compare {
+.timing__risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.timing__risk-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+}
+
+/* The chosen timing's bill. */
+.careplan__bill {
+  width: 100%;
+  max-width: 52rem;
   display: grid;
-  grid-template-columns: auto auto 1fr;
-  gap: 4rem;
-  align-items: end;
+  justify-items: center;
+  gap: 1rem;
+}
+.careplan__bill .bill-bar {
+  width: 100%;
+}
+.careplan__details-toggle {
+  font-size: var(--type-lead);
+}
+.careplan__details {
+  width: 100%;
+  max-width: 52rem;
+  display: grid;
+  gap: 2.25rem;
+  font-size: var(--type-small);
 }
 .careplan__timing-note {
-  justify-self: start;
+  font-size: var(--type-body);
+  max-width: var(--type-measure);
 }
-.careplan__bill {
+.careplan__lines {
   display: grid;
-  gap: 1.25rem;
-  max-width: 46rem;
+  gap: 1rem;
 }
 .careplan__explain {
   display: grid;
   gap: 0.5rem;
   justify-items: start;
-}
-.careplan__details-toggle {
-  justify-self: start;
-}
-.careplan__details {
-  display: grid;
-  gap: 2.25rem;
-  max-width: 52rem;
-  font-size: var(--type-small);
 }
 .careplan__details h3 {
   font-weight: 600;
@@ -1074,6 +1109,10 @@ h3 {
 }
 .careplan__details details ul {
   margin: 0.5rem 0 0.75rem 1rem;
+}
+.careplan > .fine-print {
+  text-align: center;
+  max-width: var(--type-measure);
 }
 
 /* Waterfall. */
@@ -1397,15 +1436,17 @@ h3 {
   .provider-col__label {
     font-size: var(--type-figure);
   }
-  .careplan__compare {
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+  .careplan {
+    gap: 3rem;
   }
-  .careplan__timing-note {
-    grid-column: 1 / -1;
+  .careplan__title {
+    font-size: var(--type-figure);
   }
-  .timeline__track {
-    margin-right: 4rem;
+  .timings,
+  .timings[data-count] {
+    --count: 1;
+    max-width: none;
+    gap: 0.75rem;
   }
   .waterfall__row {
     grid-template-columns: 1fr auto;

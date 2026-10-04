@@ -4,8 +4,8 @@
 // every plan has one placement, because the sequencer prices the whole
 // procedure on one date ("now", "after the reset", or the lowest-cost
 // date). Splitting a bundle across the reset (root canal before, crown
-// after) becomes a plan with two placements; the timeline already draws any
-// number of them, and plan totals below are sums over placements.
+// after) becomes a plan with two placements; the timing columns already
+// show any number of them, and plan totals below are sums over placements.
 
 import type { CarePlan, CarePlanOption } from "../types";
 import { owed } from "./derive";
