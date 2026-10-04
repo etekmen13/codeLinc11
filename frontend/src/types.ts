@@ -78,3 +78,39 @@ export interface OnboardingResult {
   start_state: ToothState;
   hazard_multipliers: Record<string, number>; // "a->b" edge, multiplier
 }
+
+// One procedure at one dentist on the insured path, in dollars.
+export interface ProviderCost {
+  procedure: string; // CDT code
+  provider: string;
+  in_network: boolean;
+  provider_fee: number;
+  deductible_applied: number;
+  plan_pays: number;
+  you_pay: number;
+  balance_billing: number;
+  annual_maximum_remaining: number;
+  allowed_amount: number;
+  covered: boolean;
+  denial_reason: "waiting_period" | "frequency_limit" | null;
+  cash_price: number | null; // null if the dentist has no self-pay price
+  explanation: string[]; // one sentence per pricing step
+  assumptions: string[];
+}
+
+export interface ProviderCard {
+  id: string;
+  name: string;
+  distance_miles: number;
+  credentials: string[];
+  in_network: boolean;
+  cost: ProviderCost;
+}
+
+// What POST /api/providers returns; each column sorted by you_pay.
+export interface ProvidersResult {
+  procedure: string;
+  date_of_service: string; // ISO date
+  in_network: ProviderCard[];
+  out_of_network: ProviderCard[];
+}
