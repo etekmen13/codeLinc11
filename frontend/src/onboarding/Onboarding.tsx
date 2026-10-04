@@ -4,6 +4,7 @@ import {
   problems_of,
   submit_onboarding,
   type FormOptions,
+  type OnboardingRequest,
 } from "../api";
 import type { OnboardingResult } from "../types";
 import {
@@ -23,7 +24,9 @@ import { SymptomCheck } from "./steps/SymptomCheck";
 import { UrgentCare } from "./steps/UrgentCare";
 
 interface Props {
-  on_complete: (result: OnboardingResult) => void;
+  // The request goes along so later screens can send it to the endpoints
+  // that take the same body.
+  on_complete: (result: OnboardingResult, request: OnboardingRequest) => void;
 }
 
 export function Onboarding({ on_complete }: Props) {
@@ -67,7 +70,7 @@ export function Onboarding({ on_complete }: Props) {
     set_submitting(true);
     set_submit_error(null);
     try {
-      on_complete(await submit_onboarding(request));
+      on_complete(await submit_onboarding(request), request);
     } catch (err) {
       set_submit_error(problems_of(err));
     } finally {
@@ -78,7 +81,10 @@ export function Onboarding({ on_complete }: Props) {
   if (urgent) {
     return (
       <main className="ob">
-        <UrgentCare heading_ref={heading_ref} on_back={() => set_urgent(false)} />
+        <UrgentCare
+          heading_ref={heading_ref}
+          on_back={() => set_urgent(false)}
+        />
       </main>
     );
   }
@@ -166,7 +172,10 @@ export function Onboarding({ on_complete }: Props) {
             answers={draft.quiz_answers}
             on_answer={(question_id, option_id) =>
               update({
-                quiz_answers: { ...draft.quiz_answers, [question_id]: option_id },
+                quiz_answers: {
+                  ...draft.quiz_answers,
+                  [question_id]: option_id,
+                },
               })
             }
             on_back={back}
