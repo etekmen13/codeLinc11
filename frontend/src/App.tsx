@@ -188,6 +188,7 @@ export default function App() {
           you_pay: result.owed,
           balance_billing: result.balance,
           annual_maximum_remaining: Math.max(0, remaining - result.paid),
+          cdt_code: onboarding!.procedure.cdt_code,
         })
       : null,
   );

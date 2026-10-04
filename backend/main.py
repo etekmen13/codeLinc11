@@ -3,12 +3,14 @@ from pathlib import Path
 
 import onboarding
 from care_plan import router as care_plan_router
+from cdt_mapper import router as cdt_router
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI()
 app.include_router(onboarding.router)
 app.include_router(care_plan_router)
+app.include_router(cdt_router)
 DB_PATH = Path(__file__).parent / "app.db"
 
 

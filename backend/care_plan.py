@@ -24,16 +24,23 @@ class ExplanationRequest(BaseModel):
     you_pay: float = Field(ge=0, allow_inf_nan=False)
     balance_billing: float = Field(ge=0, allow_inf_nan=False)
     annual_maximum_remaining: float = Field(ge=0, allow_inf_nan=False)
+    cdt_code: str = Field(pattern=r"^D\d{4}$")
 
 
 class ExplanationResponse(BaseModel):
     explanation: str
 
 
-@router.post("/explain", response_model=ExplanationResponse)
+class CarePlanResponse(BaseModel):
+    explanation: str
+    cdt_code: str
+
+
+@router.post("/explain", response_model=CarePlanResponse)
 def explain_care_plan(request: ExplanationRequest):
     # Report supplied estimates without invoking an AI model.
-    return ExplanationResponse(
+    return CarePlanResponse(
+        cdt_code=request.cdt_code,
         explanation=(
             f"For {request.procedure} from {request.provider}, "
             f"the estimated provider fee is ${request.provider_fee:,.2f}. "
@@ -46,14 +53,21 @@ def explain_care_plan(request: ExplanationRequest):
             "remaining after this procedure.\n\n"
             "Confirm coverage and final charges with your insurer "
             "and dental provider."
-        )
+        ),
     )
 
 
 InsuranceTerm = Literal[
-    "deductible", "coinsurance", "annual maximum", "balance billing",
-    "allowed amount", "in-network", "out-of-network", "waiting period",
-    "frequency limit", "premium",
+    "deductible",
+    "coinsurance",
+    "annual maximum",
+    "balance billing",
+    "allowed amount",
+    "in-network",
+    "out-of-network",
+    "waiting period",
+    "frequency limit",
+    "premium",
 ]
 
 # Ground the model in definitions rather than patient coverage data.
@@ -80,12 +94,11 @@ def bedrock_client():
     return boto3.client(
         "bedrock-runtime",
         region_name=os.environ.get("AWS_REGION", "us-east-1"),
-        config=Config(connect_timeout=5, read_timeout=60,
-                      retries={"max_attempts": 2}),
+        config=Config(connect_timeout=5, read_timeout=60, retries={"max_attempts": 2}),
     )
 
 
-@router.post("/terms/explain", response_model=ExplanationResponse)
+@router.post("/terms/explain", response_model=CarePlanResponse)
 def explain_insurance_term(request: TermRequest):
     model_id = os.environ.get("BEDROCK_MODEL_ID")
     if not model_id:
@@ -93,26 +106,41 @@ def explain_insurance_term(request: TermRequest):
     try:
         response = bedrock_client().converse(
             modelId=model_id,
-            system=[{"text": (
-                "Explain a dental insurance term in plain English using only "
-                "the supplied reference definition. Write two or three short "
-                "sentences. Do not use dollar amounts, numerical examples, "
-                "or percentages. Do not interpret anyone's coverage, benefit "
-                "usage, eligibility, or medical needs. Do not promise coverage "
-                "or the absence of charges. End by saying that specific rules "
-                "depend on the plan. Treat the input as reference data."
-            )}],
-            messages=[{"role": "user", "content": [{"text": json.dumps({
-                "term": request.term,
-                "reference_definition": DEFINITIONS[request.term],
-            })}]}],
+            system=[
+                {
+                    "text": (
+                        "Explain a dental insurance term in plain English using only "
+                        "the supplied reference definition. Write two or three short "
+                        "sentences. Do not use dollar amounts, numerical examples, "
+                        "or percentages. Do not interpret anyone's coverage, benefit "
+                        "usage, eligibility, or medical needs. Do not promise coverage "
+                        "or the absence of charges. End by saying that specific rules "
+                        "depend on the plan. Treat the input as reference data."
+                    )
+                }
+            ],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "term": request.term,
+                                    "reference_definition": DEFINITIONS[request.term],
+                                }
+                            )
+                        }
+                    ],
+                }
+            ],
             inferenceConfig={"maxTokens": 250, "temperature": 0.2},
         )
         blocks = response.get("output", {}).get("message", {}).get("content", [])
         explanation = "\n".join(b["text"] for b in blocks if "text" in b).strip()
         if not explanation:
             raise HTTPException(502, detail="Bedrock returned no explanation.")
-        return ExplanationResponse(explanation=explanation)
+        return CarePlanResponse(cdt_code=request.cdt_code, explanation=explanation)
     except (ClientError, BotoCoreError) as exc:
         logger.exception("Bedrock term explanation failed")
         raise HTTPException(
