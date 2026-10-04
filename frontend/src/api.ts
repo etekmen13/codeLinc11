@@ -19,9 +19,39 @@ export interface FormOptions {
   procedures: Procedure[];
 }
 
+export interface CoverageInput {
+  annual_maximum: number;
+  deductible: number;
+  preventive: number;
+  basic: number;
+  major: number;
+  plan_year_start: string;
+}
+export interface MemberInput {
+  as_of: string;
+  coverage_start: string;
+  amount_used: number;
+  deductible_met: number;
+}
+export interface CoverageExtraction {
+  document_type: string;
+  fields: Record<
+    string,
+    { value: string | number; page: number; evidence: string }
+  >;
+  warnings: string[];
+  requires_confirmation: boolean;
+}
+export function extract_coverage(file: File): Promise<CoverageExtraction> {
+  const body = new FormData();
+  body.append("file", file);
+  return request("/api/coverage/extract", { method: "POST", body });
+}
 export interface OnboardingRequest {
+  coverage?: CoverageInput;
+  member?: MemberInput;
   plan_id: string;
-  subscriber_id: string;
+  subscriber_id?: string;
   procedure_code: string;
   quiz_answers: QuizAnswers;
 }

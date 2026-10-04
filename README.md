@@ -66,3 +66,29 @@ frontend/
 - TypeScript: `npm run lint` (from `frontend/`)
 
 In VS Code, format on save is configured in `.vscode/settings.json`. Install the Ruff and Prettier extensions.
+
+## Coverage intake demo
+
+The insurer labels are Lincoln Financial, Delta Dental and MetLife. All demo plan
+names, ID formats, coverage values, networks, fees, claims history and FSA values
+are fictional; there is no insurer eligibility lookup or affiliation.
+
+On the plan step, select a demo plan, optionally upload a text-based
+coverage PDF, review the page evidence, and explicitly apply extracted candidates.
+Edit the annual maximum, deductible, plan-paid percentages, current benefit-year
+start, coverage start, balance date, insurer benefits used and deductible met.
+The same submitted values are validated by onboarding, providers, simulation and
+care planning. Unedited rules and history remain demo assumptions.
+
+`POST /api/coverage/extract` accepts a multipart `file` (PDF, at most 10 MB and
+40 pages), returns candidate fields with page evidence, and does not save uploads.
+General product brochures never supply exact numeric benefits. Conflicting
+values are omitted. Scanned documents need manual entry; OCR is not implemented.
+The extractor currently handles simple labeled text, not arbitrary insurer tables,
+network-specific percentages, exclusions, waiting periods or rollover rules.
+It never applies a candidate automatically or changes the selected insurer.
+
+Run `uv sync` in backend after updating, and `npm run build` in frontend.
+
+Subscriber IDs are optional. PDF and manual intake work without one; IDs never
+trigger eligibility lookup and are not checked against fictional demo formats.

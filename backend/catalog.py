@@ -1,7 +1,7 @@
 """Sample plans, the procedure catalog, and providers. The canonical copy of
 this data: the frontend gets what it displays from GET /api/onboarding/form.
 
-Insurers are fictional. Numbers are typical of US employer PPO plans but not
+Insurer names are real; all plan names, benefits, IDs and network data are mock. Numbers are typical of US employer PPO plans but not
 taken from any real policy. Fees are rough US averages.
 """
 
@@ -121,8 +121,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
         # Generous plan with some usage already.
         Plan(
             id="summit-ppo-plus",
-            insurer="Summit Dental",
-            plan_name="PPO Plus",
+            insurer="Delta Dental",
+            plan_name="Demo PPO Plus",
             annual_maximum=2000,
             deductible=50,
             deductible_applies_to=frozenset({"basic", "major"}),
@@ -184,8 +184,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
         # covered until July 2027.
         Plan(
             id="harbor-ppo-basic",
-            insurer="Harbor Benefits",
-            plan_name="PPO Basic",
+            insurer="MetLife",
+            plan_name="Demo PPO Basic",
             annual_maximum=1000,
             deductible=75,
             deductible_applies_to=frozenset({"basic", "major"}),
@@ -240,8 +240,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
         # plan-year reset saves the most here.
         Plan(
             id="keystone-ppo",
-            insurer="Keystone Mutual",
-            plan_name="Dental PPO",
+            insurer="Lincoln Financial",
+            plan_name="Demo Dental PPO",
             annual_maximum=1500,
             deductible=100,
             deductible_applies_to=frozenset({"preventive", "basic", "major"}),

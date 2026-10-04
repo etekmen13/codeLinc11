@@ -11,12 +11,12 @@ validate_onboarding, so every request is self-contained and can be replayed
 from /docs.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 import quiz
 from catalog import (
@@ -30,17 +30,40 @@ from catalog import (
     Plan,
     Procedure,
     SamplePlan,
-    is_valid_subscriber_id,
     normalize_subscriber_id,
 )
 from progression import EDGES, edge_name
 
 
+class CoverageInput(BaseModel):
+    annual_maximum: float = Field(ge=0, le=100000)
+    deductible: float = Field(ge=0, le=10000)
+    preventive: float = Field(ge=0, le=1)
+    basic: float = Field(ge=0, le=1)
+    major: float = Field(ge=0, le=1)
+    plan_year_start: date
+
+
+class MemberInput(BaseModel):
+    as_of: date
+    coverage_start: date
+    amount_used: float = Field(ge=0, le=100000)
+    deductible_met: float = Field(ge=0, le=10000)
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        if self.coverage_start > self.as_of:
+            raise ValueError("Coverage start must be on or before the balance date")
+        return self
+
+
 class OnboardingRequest(BaseModel):
     plan_id: str
-    subscriber_id: str
+    subscriber_id: str = Field(default="", max_length=100)
     procedure_code: str
     quiz_answers: dict[str, str]  # question id -> option id
+    coverage: CoverageInput | None = None
+    member: MemberInput | None = None
 
 
 @dataclass(frozen=True)
@@ -73,12 +96,6 @@ def validate_onboarding(req: OnboardingRequest) -> Onboarded:
         problems.append(f"unknown plan {req.plan_id!r}")
 
     subscriber_id = normalize_subscriber_id(req.subscriber_id)
-    if sample and not is_valid_subscriber_id(sample.plan, subscriber_id):
-        problems.append(
-            f"subscriber ID {subscriber_id!r} does not match {sample.plan.insurer}'s "
-            f"format, e.g. {sample.plan.subscriber_id_example}"
-        )
-
     procedure = PROCEDURES_BY_CODE.get(req.procedure_code)
     if procedure is None:
         problems.append(f"unknown procedure {req.procedure_code!r}")
@@ -88,13 +105,58 @@ def validate_onboarding(req: OnboardingRequest) -> Onboarded:
     if problems or sample is None or procedure is None:
         raise InvalidOnboarding(problems)
 
+    plan = sample.plan
+    member = sample.default_member
+    if req.coverage:
+        c = req.coverage
+        plan = replace(
+            plan,
+            annual_maximum=c.annual_maximum,
+            deductible=c.deductible,
+            coinsurance={
+                "preventive": c.preventive,
+                "basic": c.basic,
+                "major": c.major,
+            },
+            plan_year_start=c.plan_year_start.isoformat(),
+        )
+    if req.member:
+        m = req.member
+        member = replace(
+            member,
+            as_of=m.as_of.isoformat(),
+            coverage_start=m.coverage_start.isoformat(),
+            amount_used=m.amount_used,
+            deductible_met=m.deductible_met,
+        )
+    if (
+        member.amount_used > plan.annual_maximum
+        or member.deductible_met > plan.deductible
+    ):
+        raise InvalidOnboarding(
+            ["Used benefits and deductible met cannot exceed the plan limits"]
+        )
+    begin = date.fromisoformat(plan.plan_year_start)
+    as_of = date.fromisoformat(member.as_of)
+    from cost import add_months
+
+    if not begin <= as_of < add_months(begin, 12):
+        raise InvalidOnboarding(
+            ["Balance date must fall within the selected benefit year"]
+        )
+    if any(
+        date.fromisoformat(service.date_of_service) > as_of
+        for service in member.past_services
+    ):
+        raise InvalidOnboarding(["Balance date precedes the demo claims history"])
+
     return Onboarded(
-        plan=sample.plan,
-        member=sample.default_member,
+        plan=plan,
+        member=member,
         subscriber_id=subscriber_id,
         procedure=procedure,
         quiz_answers=dict(req.quiz_answers),
-        as_of=date.fromisoformat(sample.default_member.as_of),
+        as_of=as_of,
     )
 
 
