@@ -418,7 +418,7 @@ export const ui = {
     choose: "Choose",
     legend: {
       plan: "Plan pays",
-      you: "You pay",
+      you: "Your share",
       gap: "Balance bill",
       waived: "Waived",
     },
@@ -426,25 +426,28 @@ export const ui = {
     allFsa: "all from your FSA",
   },
   careplan: {
-    headline: "{amount}",
-    headlineNote: "what you'd pay at {provider}, {timing}",
-    timings: {
-      now: "now",
-      after_reset: "after the reset",
-      lowest: "at the lowest cost",
-    } as Record<string, string>,
+    title: "When to have {procedure} at {provider}",
+    resets: "Your plan year resets {date}.",
     timingLabels: {
       now: "Now",
       after_reset: "After the reset",
       lowest: "Lowest cost",
     } as Record<string, string>,
-    reset: "Resets {date}",
+    timings: {
+      now: "now",
+      after_reset: "after the reset",
+      lowest: "at the lowest cost",
+    } as Record<string, string>,
     timingGroup: "When to have it",
-    today: "Today",
-    saves: "saves",
-    costsMore: "costs more",
-    sameCost: "same cost",
-    worseFirst: "chance it gets worse first",
+    // Under each timing's label: its date, then what pays for it.
+    timingDate: "{date} · {source}",
+    cashSource: "cash price",
+    saves: "{amount} less than now",
+    costsMore: "{amount} more than now",
+    sameCost: "same as now",
+    worseFirst: "{pct}% chance it gets worse first",
+    billCaption: "How the {fee} bill splits, {timing}",
+    lineByLine: "Line by line",
     timingSaves:
       "Your plan year resets on {resetDate}. This timing uses {yearPhrase} and saves you {savings} compared with now. By then, there's a {riskPct}% chance this gets worse first.",
     timingCosts:
