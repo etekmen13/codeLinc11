@@ -30,7 +30,6 @@ from catalog import (
     Plan,
     Procedure,
     SamplePlan,
-    is_valid_subscriber_id,
     normalize_subscriber_id,
 )
 from progression import EDGES, edge_name
@@ -60,7 +59,7 @@ class MemberInput(BaseModel):
 
 class OnboardingRequest(BaseModel):
     plan_id: str
-    subscriber_id: str
+    subscriber_id: str = Field(default="", max_length=100)
     procedure_code: str
     quiz_answers: dict[str, str]  # question id -> option id
     coverage: CoverageInput | None = None
@@ -97,12 +96,6 @@ def validate_onboarding(req: OnboardingRequest) -> Onboarded:
         problems.append(f"unknown plan {req.plan_id!r}")
 
     subscriber_id = normalize_subscriber_id(req.subscriber_id)
-    if sample and not is_valid_subscriber_id(sample.plan, subscriber_id):
-        problems.append(
-            f"subscriber ID {subscriber_id!r} does not match the demo plan's "
-            f"format, e.g. {sample.plan.subscriber_id_example}"
-        )
-
     procedure = PROCEDURES_BY_CODE.get(req.procedure_code)
     if procedure is None:
         problems.append(f"unknown procedure {req.procedure_code!r}")

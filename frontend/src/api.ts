@@ -51,7 +51,7 @@ export interface OnboardingRequest {
   coverage?: CoverageInput;
   member?: MemberInput;
   plan_id: string;
-  subscriber_id: string;
+  subscriber_id?: string;
   procedure_code: string;
   quiz_answers: QuizAnswers;
 }

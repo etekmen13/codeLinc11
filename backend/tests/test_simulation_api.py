@@ -76,10 +76,11 @@ def test_matches_the_care_plan_risk():
 
 def test_invalid_request_lists_every_problem():
     res = client.post(
-        "/api/simulation", json=body(subscriber_id="nope", procedure_code="D0000")
+        "/api/simulation",
+        json={**body(), "plan_id": "unknown-plan", "procedure_code": "D0000"},
     )
     assert res.status_code == 422
     problems = res.json()["detail"]
     assert len(problems) == 2
-    assert any("subscriber ID" in p for p in problems)
+    assert any("unknown plan" in p for p in problems)
     assert any("D0000" in p for p in problems)

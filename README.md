@@ -73,7 +73,7 @@ The insurer labels are Lincoln Financial, Delta Dental and MetLife. All demo pla
 names, ID formats, coverage values, networks, fees, claims history and FSA values
 are fictional; there is no insurer eligibility lookup or affiliation.
 
-On the plan step, select a demo plan and sample ID, optionally upload a text-based
+On the plan step, select a demo plan, optionally upload a text-based
 coverage PDF, review the page evidence, and explicitly apply extracted candidates.
 Edit the annual maximum, deductible, plan-paid percentages, current benefit-year
 start, coverage start, balance date, insurer benefits used and deductible met.
@@ -89,3 +89,6 @@ network-specific percentages, exclusions, waiting periods or rollover rules.
 It never applies a candidate automatically or changes the selected insurer.
 
 Run `uv sync` in backend after updating, and `npm run build` in frontend.
+
+Subscriber IDs are optional. PDF and manual intake work without one; IDs never
+trigger eligibility lookup and are not checked against fictional demo formats.

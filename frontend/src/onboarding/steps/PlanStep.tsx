@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   formatDate,
   formatMoney,
@@ -8,11 +8,6 @@ import {
 } from "../../lib/coverage";
 import type { SamplePlan } from "../../types";
 import type { Draft } from "../draft";
-import {
-  generate_subscriber_id,
-  is_valid_subscriber_id,
-  normalize_subscriber_id,
-} from "../subscriber_id";
 import { StepNav } from "./StepNav";
 
 interface Props {
@@ -36,13 +31,7 @@ export function PlanStep({
   on_back,
   on_next,
 }: Props) {
-  // Only show the format error after the user leaves the field.
-  const [touched, set_touched] = useState(false);
   const sample = plans.find((s) => s.plan.id === plan_id);
-  const id_valid = sample
-    ? is_valid_subscriber_id(sample.plan, subscriber_id)
-    : false;
-  const show_id_error = touched && subscriber_id !== "" && !id_valid;
 
   return (
     <>
@@ -52,12 +41,11 @@ export function PlanStep({
           id="ob-insurer"
           value={plan_id ?? ""}
           onChange={(e) => {
-            // A new insurer means a new ID format, so clear the old ID.
+            // Clear the optional ID when switching plans.
             on_change({
               plan_id: e.target.value || undefined,
               subscriber_id: "",
             });
-            set_touched(false);
           }}
         >
           <option value="">Choose a demo insurer and plan</option>
@@ -71,47 +59,25 @@ export function PlanStep({
 
       {sample && (
         <>
-          <div className="ob-field">
-            <label htmlFor="ob-subscriber">Sample subscriber ID</label>
-            <div className="ob-inline">
+          <details>
+            <summary>Add a subscriber ID (optional)</summary>
+            <div className="ob-field">
+              <label htmlFor="ob-subscriber">Subscriber ID (optional)</label>
               <input
                 id="ob-subscriber"
                 value={subscriber_id}
-                placeholder={sample.plan.subscriber_id_example}
+                maxLength={100}
                 autoComplete="off"
                 spellCheck={false}
-                aria-invalid={show_id_error}
                 aria-describedby="ob-subscriber-hint"
                 onChange={(e) => on_change({ subscriber_id: e.target.value })}
-                onBlur={() => {
-                  set_touched(true);
-                  on_change({
-                    subscriber_id: normalize_subscriber_id(subscriber_id),
-                  });
-                }}
               />
-              <button
-                type="button"
-                className="ob-button-secondary"
-                onClick={() => {
-                  on_change({
-                    subscriber_id: generate_subscriber_id(sample.plan),
-                  });
-                  set_touched(true);
-                }}
-              >
-                Use a sample ID
-              </button>
+              <p id="ob-subscriber-hint" className="ob-muted">
+                Leave this blank to use PDF or manual intake. This app does not
+                verify eligibility or look up benefits using your ID.
+              </p>
             </div>
-            <p
-              id="ob-subscriber-hint"
-              className={show_id_error ? "ob-error" : "ob-muted"}
-            >
-              {show_id_error
-                ? `That doesn't match this demo plan's sample format. It should look like ${sample.plan.subscriber_id_example}.`
-                : `Mock ID for this demo, for example ${sample.plan.subscriber_id_example}.`}
-            </p>
-          </div>
+          </details>
 
           <dl className="ob-summary">
             <div>
@@ -153,7 +119,7 @@ export function PlanStep({
       )}
 
       {children}
-      <StepNav on_back={on_back} on_next={on_next} next_disabled={!id_valid} />
+      <StepNav on_back={on_back} on_next={on_next} next_disabled={!sample} />
     </>
   );
 }

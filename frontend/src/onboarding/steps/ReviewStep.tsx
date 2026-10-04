@@ -45,8 +45,12 @@ export function ReviewStep({
           <dd>
             {sample ? (
               <>
-                {sample.plan.insurer} {sample.plan.plan_name}, ID{" "}
-                <span className="ob-nowrap">{subscriber_id}</span>
+                {sample.plan.insurer} {sample.plan.plan_name}
+                {subscriber_id.trim() ? (
+                  <span className="ob-nowrap">, ID {subscriber_id}</span>
+                ) : (
+                  <span className="ob-muted"> — no subscriber ID provided</span>
+                )}
                 <span className="ob-muted">
                   {" "}
                   (
