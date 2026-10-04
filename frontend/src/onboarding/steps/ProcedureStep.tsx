@@ -12,6 +12,8 @@ type Mapping = {
   status: "candidate" | "needs_clarification" | "no_match";
   candidate_codes: { code: string; reason: string }[];
   clarification_question: string | null;
+  // "keywords" when the server has no AI model configured, or it failed
+  matched_by?: "model" | "keywords";
 };
 function isMapping(value: unknown): value is Mapping {
   if (!value || typeof value !== "object") return false;
@@ -249,8 +251,12 @@ export function ProcedureStep({
               missing for this treatment.
             </p>
           )}
-          {selected && (
-            <p role="status">Treatment matched: {displayText(selected.name)}</p>
+          {selected && <p role="status">Treatment matched: {selected.name}</p>}
+          {mapping?.matched_by === "keywords" && (
+            <p className="ob-muted">
+              Matched by keyword search, because AI matching is not set up on
+              this server.
+            </p>
           )}
         </div>
         <p className="ob-muted">

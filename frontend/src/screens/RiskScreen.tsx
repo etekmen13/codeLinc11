@@ -2,13 +2,14 @@ import { fetch_simulation, type OnboardingRequest } from "../api";
 import { formatISODate, formatPercent } from "../lib/coverage";
 import { band_label, tooth_state_label } from "../lib/labels";
 import { useApi } from "../lib/useApi";
+import MonteCarloPaper from "../simulation/MonteCarloPaper";
 import { Status } from "./Status";
 
 // Months shown in the table, if within the horizon.
 const KEY_MONTHS = [0, 3, 6, 12, 18, 24];
 
-// How the untreated tooth may progress. A plain table for now; the chart
-// will replace it.
+// How the untreated tooth may progress: the simulated futures animated,
+// then the numbers behind them.
 export function RiskScreen({
   request,
   on_next,
@@ -32,6 +33,15 @@ export function RiskScreen({
             {tooth_state_label(sim.start_state).toLowerCase()} on{" "}
             {formatISODate(sim.as_of)}.
           </p>
+
+          <section className="card">
+            <MonteCarloPaper
+              paths={sim.sample_paths}
+              states={sim.states.map(tooth_state_label)}
+              bands={sim.summary.bands}
+              totalFutures={sim.n_samples}
+            />
+          </section>
 
           <section className="card">
             <h2>
