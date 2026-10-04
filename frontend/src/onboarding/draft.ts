@@ -1,7 +1,5 @@
-import { find_sample_plan } from "../data/plans";
-import { findProcedure } from "../data/procedures";
-import { hazard_multiplier, isQuizComplete, questionsFor } from "../lib/risk";
-import type { OnboardingResult, QuizAnswers } from "../types";
+import type { OnboardingRequest } from "../api";
+import type { QuizAnswers, QuizQuestion } from "../types";
 
 export type Step = "symptoms" | "plan" | "procedure" | "quiz" | "review";
 
@@ -17,23 +15,24 @@ export const STEPS: { id: Step; label: string; title: string }[] = [
   { id: "review", label: "Review", title: "Check your details" },
 ];
 
-// Everything the user has entered so far. Fields stay optional until the
-// review step, where buildResult turns a complete draft into the contract.
+// Everything the user has entered so far. The backend validates it all on
+// submit; the form only checks that each step has an answer.
 export interface Draft {
-  planId?: string;
+  plan_id?: string;
   subscriber_id: string;
-  procedureCode?: string;
+  procedure_code?: string;
   quiz_answers: QuizAnswers;
 }
 
 export const EMPTY_DRAFT: Draft = { subscriber_id: "", quiz_answers: {} };
 
 // Root canal on the nearly exhausted Keystone plan, which shows the
-// split-across-reset comparison best.
+// split-across-reset comparison best. Ids must match the backend; if they
+// drift, the submit error says which one.
 export const DEMO_DRAFT: Draft = {
-  planId: "keystone-ppo",
+  plan_id: "keystone-ppo",
   subscriber_id: "K417-2290-08",
-  procedureCode: "D3330",
+  procedure_code: "D3330",
   quiz_answers: {
     sugar: "daily",
     brushing: "once",
@@ -45,28 +44,20 @@ export const DEMO_DRAFT: Draft = {
   },
 };
 
-// The only place a draft becomes an OnboardingResult. Returns null if
-// anything is missing, so the review step can say what to fix.
-export function buildResult(draft: Draft): OnboardingResult | null {
-  const sample = draft.planId ? find_sample_plan(draft.planId) : undefined;
-  const procedure = draft.procedureCode
-    ? findProcedure(draft.procedureCode)
-    : undefined;
-  if (!sample || !procedure || !draft.subscriber_id) return null;
+export function is_quiz_complete(
+  answers: QuizAnswers,
+  questions: QuizQuestion[],
+): boolean {
+  return questions.every((q) => q.options.some((o) => o.id === answers[q.id]));
+}
 
-  const questions = questionsFor(procedure);
-  if (!isQuizComplete(draft.quiz_answers, questions)) return null;
-
-  // Drop answers to questions that no longer apply, e.g. the user answered
-  // tooth-pain questions, then switched the procedure to a cleaning.
-  const quiz_answers: QuizAnswers = {};
-  for (const q of questions) quiz_answers[q.id] = draft.quiz_answers[q.id];
-
+// The only place a draft becomes a request. Null if a step is unfinished.
+export function build_request(d: Draft): OnboardingRequest | null {
+  if (!d.plan_id || !d.procedure_code || !d.subscriber_id.trim()) return null;
   return {
-    plan: sample.plan,
-    member: { ...sample.default_member, subscriber_id: draft.subscriber_id },
-    procedure,
-    quiz_answers,
-    hazard_multiplier: hazard_multiplier(quiz_answers, questions),
+    plan_id: d.plan_id,
+    subscriber_id: d.subscriber_id,
+    procedure_code: d.procedure_code,
+    quiz_answers: d.quiz_answers,
   };
 }

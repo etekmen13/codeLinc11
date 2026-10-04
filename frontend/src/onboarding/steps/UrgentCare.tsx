@@ -1,14 +1,14 @@
 import type { RefObject } from "react";
 
 interface Props {
-  headingRef: RefObject<HTMLHeadingElement | null>;
-  onBack: () => void;
+  heading_ref: RefObject<HTMLHeadingElement | null>;
+  on_back: () => void;
 }
 
-export function UrgentCare({ headingRef, onBack }: Props) {
+export function UrgentCare({ heading_ref, on_back }: Props) {
   return (
     <section className="ob-panel ob-urgent" aria-labelledby="ob-urgent-title">
-      <h1 id="ob-urgent-title" ref={headingRef} tabIndex={-1}>
+      <h1 id="ob-urgent-title" ref={heading_ref} tabIndex={-1}>
         See a dentist today
       </h1>
       <p>
@@ -25,7 +25,7 @@ export function UrgentCare({ headingRef, onBack }: Props) {
         treated.
       </p>
       <div className="ob-nav">
-        <button type="button" className="ob-button-secondary" onClick={onBack}>
+        <button type="button" className="ob-button-secondary" onClick={on_back}>
           I checked a box by mistake
         </button>
       </div>

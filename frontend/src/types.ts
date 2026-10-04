@@ -43,30 +43,31 @@ export interface Procedure {
   treats_state: ToothState;
 }
 
+export interface SamplePlan {
+  plan: Plan;
+  default_member: Omit<MemberStatus, "subscriber_id">;
+}
+
 export interface QuizOption {
   id: string;
   label: string;
 }
 
+// The backend filters questions by procedure, so none carry applies_to.
 export interface QuizQuestion {
   id: string;
   prompt: string;
   options: QuizOption[];
-  applies_to?: ToothState[]; // omitted means question applies to every procedure
 }
 
 export type QuizAnswers = Record<string, string>; // question id, option id
 
+// What POST /api/onboarding returns.
 export interface OnboardingResult {
   plan: Plan;
   member: MemberStatus;
   procedure: Procedure;
   quiz_answers: QuizAnswers;
-}
-
-export interface OnboardingRequest {
-  planId: string;
-  subscriberId: string;
-  procedureCode: string;
-  quizAnswers: Record<string, string>; // question id, option id
+  start_state: ToothState;
+  hazard_multipliers: Record<string, number>; // "a->b" edge, multiplier
 }

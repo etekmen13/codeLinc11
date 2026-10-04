@@ -1,30 +1,30 @@
 interface Props {
-  onBack?: () => void;
-  onNext: () => void;
-  nextLabel?: string;
-  nextDisabled?: boolean;
+  on_back?: () => void;
+  on_next: () => void;
+  next_label?: string;
+  next_disabled?: boolean;
 }
 
 export function StepNav({
-  onBack,
-  onNext,
-  nextLabel = "Continue",
-  nextDisabled = false,
+  on_back,
+  on_next,
+  next_label = "Continue",
+  next_disabled = false,
 }: Props) {
   return (
     <div className="ob-nav">
-      {onBack && (
-        <button type="button" className="ob-button-secondary" onClick={onBack}>
+      {on_back && (
+        <button type="button" className="ob-button-secondary" onClick={on_back}>
           Back
         </button>
       )}
       <button
         type="button"
         className="ob-button"
-        onClick={onNext}
-        disabled={nextDisabled}
+        onClick={on_next}
+        disabled={next_disabled}
       >
-        {nextLabel}
+        {next_label}
       </button>
     </div>
   );

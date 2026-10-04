@@ -1,17 +1,17 @@
 import { useState } from "react";
-import { acuteSymptoms, type AcuteSymptomId } from "../../data/quiz";
+import { acute_symptoms, type AcuteSymptomId } from "../../data/symptoms";
 import { StepNav } from "./StepNav";
 
 interface Props {
-  onUrgent: () => void;
-  onClear: () => void;
+  on_urgent: () => void;
+  on_clear: () => void;
 }
 
-export function SymptomCheck({ onUrgent, onClear }: Props) {
-  const [checked, setChecked] = useState<AcuteSymptomId[]>([]);
+export function SymptomCheck({ on_urgent, on_clear }: Props) {
+  const [checked, set_checked] = useState<AcuteSymptomId[]>([]);
 
   const toggle = (id: AcuteSymptomId) =>
-    setChecked((prev) =>
+    set_checked((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
 
@@ -19,7 +19,7 @@ export function SymptomCheck({ onUrgent, onClear }: Props) {
     <>
       <fieldset className="ob-fieldset">
         <legend>Do you have any of these right now? Check all that apply.</legend>
-        {acuteSymptoms.map((s) => (
+        {acute_symptoms.map((s) => (
           <label key={s.id} className="ob-choice">
             <input
               type="checkbox"
@@ -31,8 +31,8 @@ export function SymptomCheck({ onUrgent, onClear }: Props) {
         ))}
       </fieldset>
       <StepNav
-        onNext={checked.length > 0 ? onUrgent : onClear}
-        nextLabel={checked.length > 0 ? "Continue" : "None of these, continue"}
+        on_next={checked.length > 0 ? on_urgent : on_clear}
+        next_label={checked.length > 0 ? "Continue" : "None of these, continue"}
       />
     </>
   );
