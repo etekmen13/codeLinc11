@@ -14,9 +14,11 @@ from progression import STATE_INDEX, STATES
 from sequencer import (
     Pricer,
     candidate_dates,
+    choose_plan,
     evaluate_options,
     frequency_limit_clears,
     months_between,
+    plan_care,
     procedures_for,
     provider_for,
 )
@@ -177,3 +179,92 @@ def test_provider_must_offer_the_procedure():
     o = onboarded("keystone-ppo", "D3330")
     with pytest.raises(ValueError):
         evaluate_options(o, fake_sim(o), NODA)
+
+
+# Harbor root canal at Uptown: major work is denied until 2027-07-01. A fifth
+# of futures need an extraction from month 6, so risk is low through March
+# 2027 and medium after.
+#   Now (or any 2026 date): denied, you owe the negotiated 820; the $250 FSA
+#   leaves 570.
+#   January 2027: still denied, 820; $250 carries over, 570 elected at 22%
+#   tax: 0.78 * 570 = 444.60.
+#   July 2027: covered. Root canal d = 75, plan 50% of 745 = 372.50, you
+#   447.50. Extraction bundle: D7140 you 97.50, D6010 you 775, D6065 plan
+#   capped at the 172.50 left, you 927.50; total 1800. After the carryover,
+#   the 22% quantile of {197.50 x 80, 1550 x 20} is 197.50:
+#   0.78 * 197.50 + 20% * (1550 - 197.50) = 154.05 + 270.50 = 424.55.
+
+
+def harbor():
+    o = onboarded("harbor-ppo-basic", "D3330")
+    return o, fake_sim(o, "extraction", share=0.2, from_month=6)
+
+
+def test_lowest_cost_within_tolerance_and_what_more_risk_would_save():
+    o, sim = harbor()
+    plan = choose_plan(o, UPTOWN, sim, sim, "low")
+    chosen = plan.lowest_cost
+    assert (chosen.date, chosen.path, chosen.band) == (
+        date(2027, 1, 4),
+        "insured",
+        "low",
+    )
+    assert chosen.cost.mean == pytest.approx(44460)
+    assert (plan.baseline.date, plan.baseline.cost.mean) == (o.as_of, 57000)
+    assert plan.savings.mean == pytest.approx(12540)
+    assert plan.savings.probability_costs_more == 0
+
+    beyond = plan.beyond_tolerance
+    assert beyond is not None and plan.beyond_tolerance_savings is not None
+    assert (beyond.date, beyond.band) == (date(2027, 7, 1), "medium")
+    assert beyond.cost.mean == pytest.approx(42455)
+    # Cheaper on average, but costlier in the fifth of futures that lose the
+    # tooth: 0.8 * 290.55 - 0.2 * 1061.95 = 20.05.
+    assert plan.beyond_tolerance_savings.mean == pytest.approx(2005)
+    assert plan.beyond_tolerance_savings.probability_costs_more == pytest.approx(0.2)
+
+
+def test_wider_tolerance_includes_the_riskier_option():
+    o, sim = harbor()
+    plan = choose_plan(o, UPTOWN, sim, sim, "medium")
+    assert plan.lowest_cost.date == date(2027, 7, 1)
+    assert plan.beyond_tolerance is None
+
+
+def test_tail_weight_favors_the_safer_option():
+    # July's costliest 5% average 1506.55, so 424.55 + 1506.55 > 2 * 444.60.
+    o, sim = harbor()
+    plan = choose_plan(o, UPTOWN, sim, sim, "medium", cvar_weight=1.0)
+    assert plan.lowest_cost.date == date(2027, 1, 4)
+
+
+def test_fsa_balance_makes_the_earliest_date_cheapest():
+    # Keystone: $400 of FSA forfeited on Dec 31 outweighs January's fresh
+    # annual maximum (see test_after_reset_prices_each_state...).
+    o = onboarded("keystone-ppo", "D3330")
+    sim = fake_sim(o, "extraction")
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    assert plan.lowest_cost == plan.baseline
+    assert plan.savings.mean == 0
+    assert plan.beyond_tolerance is None
+
+
+def test_reported_numbers_come_from_the_second_simulation():
+    o = onboarded("keystone-ppo", "D3330")
+    plan = choose_plan(o, UPTOWN, fake_sim(o), fake_sim(o, "extraction"))
+    january = next(x for x in plan.options if x.date == date(2027, 1, 4))
+    assert january.escalation_probability == pytest.approx(0.1)
+
+
+def test_unknown_tolerance_is_rejected():
+    o, sim = harbor()
+    with pytest.raises(ValueError):
+        choose_plan(o, UPTOWN, sim, sim, "reckless")
+
+
+def test_plan_care_is_reproducible():
+    o = onboarded("keystone-ppo", "D3330")
+    a = plan_care(o, UPTOWN, n_samples=2000)
+    assert a == plan_care(o, UPTOWN, n_samples=2000)
+    assert a.lowest_cost.band == "low"
+    assert a.assumptions

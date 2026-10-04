@@ -49,7 +49,15 @@ from cost import (
     initial_state,
     plan_year_containing,
 )
-from monte_carlo import RISK_BANDS, RiskBand, SimulationResult, risk_band
+from handoff import N_SAMPLES
+from monte_carlo import (
+    RISK_BANDS,
+    OutcomeSummary,
+    RiskBand,
+    SimulationResult,
+    risk_band,
+    simulate,
+)
 from onboarding import Onboarded
 from progression import STATES
 
@@ -380,3 +388,160 @@ def evaluate_options(
         for c in candidate_dates(o, sim, provider, bands)
         for path in payment_paths(o, provider)
     ]
+
+
+# Choosing
+
+
+@dataclass(frozen=True)
+class Savings:
+    """The baseline's cost minus an option's, paired future by future."""
+
+    mean: float
+    p5: float
+    p95: float
+    # Share of futures where the option costs more than the baseline
+    probability_costs_more: float
+
+
+def savings(baseline: Scored, option: Scored) -> Savings:
+    delta = baseline.costs - option.costs
+    p5, p95 = np.percentile(delta, [5, 95])
+    return Savings(
+        float(delta.mean()), float(p5), float(p95), float((delta < 0).mean())
+    )
+
+
+def lowest_cost(scored: list[Scored], cvar_weight: float = 0.0) -> Scored:
+    """Lowest expected cost, plus cvar_weight times the mean of the costliest
+    5% of futures. Ties go to the earlier date, then to insured."""
+    return min(
+        scored,
+        key=lambda s: (
+            round(s.option.cost.mean + cvar_weight * s.option.cost.cvar95),
+            s.option.date,
+            s.option.path == "cash",
+        ),
+    )
+
+
+def is_baseline(option: Option, as_of: date) -> bool:
+    """The earliest date through insurance, with this year's FSA balance:
+    what happens without planning."""
+    return option.date == as_of and option.path == "insured"
+
+
+@dataclass(frozen=True)
+class CarePlan:
+    as_of: date
+    provider_id: str
+    tolerance: str  # highest risk band the member accepts
+    # Every option, in date order; numbers come from a fresh simulation
+    # (see choose_plan)
+    options: tuple[Option, ...]
+    lowest_cost: Option  # lowest expected cost within the tolerance
+    baseline: Option
+    savings: Savings  # baseline minus lowest_cost
+    # The lowest-cost option overall, if it is cheaper but in a riskier band
+    beyond_tolerance: Option | None
+    beyond_tolerance_savings: Savings | None  # versus lowest_cost
+    risk: OutcomeSummary
+    assumptions: tuple[str, ...]
+
+
+def choose_plan(
+    o: Onboarded,
+    provider: Provider,
+    select_sim: SimulationResult,
+    report_sim: SimulationResult,
+    tolerance: str = "low",
+    cvar_weight: float = 0.0,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+    providers: tuple[Provider, ...] = PROVIDERS,
+) -> CarePlan:
+    """Find the lowest-cost option within the tolerance on select_sim, then
+    report every number from report_sim.
+
+    Picking the best of many options on one set of futures favors the
+    option that got lucky draws, which inflates its savings. Re-scoring on
+    independent futures removes that bias.
+    """
+    names = [b.name for b in bands]
+    if tolerance not in names:
+        raise ValueError(f"unknown risk tolerance {tolerance!r}; use one of {names}")
+    allowed = set(names[: names.index(tolerance) + 1])
+
+    pricer = Pricer(o, providers)
+    selected = evaluate_options(o, select_sim, provider, pricer, bands)
+    within = [s for s in selected if s.option.band in allowed]
+    best = lowest_cost(within, cvar_weight)
+    overall = lowest_cost(selected, cvar_weight)
+
+    reported = {
+        (s.option.date, s.option.path): s
+        for s in (
+            score(
+                o,
+                report_sim,
+                provider,
+                CandidateDate(s.option.date, s.option.labels),
+                s.option.path,
+                pricer,
+                bands,
+            )
+            for s in selected
+        )
+    }
+
+    def again(s: Scored) -> Scored:
+        return reported[(s.option.date, s.option.path)]
+
+    baseline = next(again(s) for s in selected if is_baseline(s.option, o.as_of))
+    chosen = again(best)
+    beyond = again(overall) if overall is not best else None
+    return CarePlan(
+        as_of=o.as_of,
+        provider_id=provider.id,
+        tolerance=tolerance,
+        options=tuple(s.option for s in reported.values()),
+        lowest_cost=chosen.option,
+        baseline=baseline.option,
+        savings=savings(baseline, chosen),
+        beyond_tolerance=beyond.option if beyond else None,
+        beyond_tolerance_savings=savings(chosen, beyond) if beyond else None,
+        risk=report_sim.summary,
+        assumptions=assumptions(o),
+    )
+
+
+def plan_care(
+    o: Onboarded,
+    provider: Provider,
+    tolerance: str = "low",
+    cvar_weight: float = 0.0,
+    n_samples: int = N_SAMPLES,
+    seed: int = 0,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+) -> CarePlan:
+    """Main entry: simulate the tooth twice (selection and reporting, on
+    independent seeds) and lay out the options."""
+    select_sim = simulate(o, n_samples=n_samples, seed=seed, bands=bands)
+    report_sim = simulate(o, n_samples=n_samples, seed=seed + 1, bands=bands)
+    return choose_plan(
+        o, provider, select_sim, report_sim, tolerance, cvar_weight, bands
+    )
+
+
+def assumptions(o: Onboarded) -> tuple[str, ...]:
+    notes = [
+        "Only this procedure is modeled; other dental and FSA spending is unknown.",
+        "Later plan and FSA years are assumed to have the same rules.",
+        "If the tooth gets worse, what it needs is priced as one visit that day.",
+        "Progression rates are placeholders, not clinically calibrated.",
+    ]
+    if o.procedure.category == "major":
+        notes.append(
+            "Plan payments are estimates; the insurer can confirm them with a "
+            "pre-treatment estimate (predetermination)."
+        )
+    return tuple(notes)
