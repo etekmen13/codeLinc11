@@ -27,11 +27,17 @@ export interface Plan {
   subscriber_id_example: string;
 }
 
+export interface PastService {
+  cdt_code: string;
+  date_of_service: string; // ISO date
+}
+
 export interface MemberStatus {
   subscriber_id: string;
   coverage_start: string; // ISO date, waiting periods count from here
   amount_used: number; // this plan year
   deductible_met: number; // this plan year
+  past_services: PastService[]; // oldest first; frequency limits count these
 }
 
 export interface Procedure {
