@@ -2,6 +2,7 @@
 // bill as a waterfall. Everything else is one "Details" away.
 
 import { useState } from "react";
+import { displayText } from "../lib/displayText";
 import {
   carePlanView,
   mainOutcome,
@@ -155,10 +156,14 @@ export function CarePlan() {
               <span className="quiet">{ui.careplan.explaining}</span>
             )}
             {costExplanation.text && (
-              <span className="margin-note">{costExplanation.text}</span>
+              <span className="margin-note">
+                {displayText(costExplanation.text)}
+              </span>
             )}
             {costExplanation.error && (
-              <span className="quiet">{costExplanation.error}</span>
+              <span className="quiet">
+                {displayText(costExplanation.error)}
+              </span>
             )}
           </p>
           {waiting && (
@@ -424,7 +429,7 @@ function Details({ data }: { data: CarePlanData }) {
         <h3>{h.assumptions}</h3>
         <ul className="plain-list quiet">
           {data.assumptions.map((a) => (
-            <li key={a}>{a}</li>
+            <li key={a}>{displayText(a)}</li>
           ))}
         </ul>
       </section>

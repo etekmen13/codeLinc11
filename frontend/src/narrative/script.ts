@@ -31,6 +31,25 @@ export interface Beat {
   next?: string;
 }
 
+const demoReaction: Reaction = {
+  expression: "neutral",
+  line: "Okay. I'll use the demo plan's numbers.",
+};
+const coverageReviewOptions: BeatOption[] = [
+  {
+    label: "Use these",
+    value: "confirm",
+    reaction: { expression: "happy", line: "Got it. I'll use your numbers." },
+  },
+  { label: "Upload another", value: "upload", small: true },
+  {
+    label: "Use the demo plan",
+    value: "demo",
+    small: true,
+    reaction: demoReaction,
+  },
+];
+
 const beatList: Beat[] = [
   // Opening
   {
@@ -74,17 +93,60 @@ const beatList: Beat[] = [
     line: "Who's your dental insurer?",
     // Options: the sample plans.
   },
+  // Benefits summary: optional; the PDF's numbers replace the demo plan's.
+  {
+    id: "coverage",
+    expression: "neutral",
+    line: "Do you have your plan's benefits summary as a PDF? I can read the main numbers from it.",
+    options: [
+      { label: "Upload a PDF", value: "upload" },
+      { label: "Use the demo plan", value: "demo", reaction: demoReaction },
+    ],
+  },
+  {
+    id: "coverage_review",
+    expression: "happy",
+    line: "Here's what I found. Click any number to change it.",
+    options: coverageReviewOptions,
+  },
+  {
+    // Nothing usable in the file (a product overview, a scan, conflicts).
+    id: "coverage_none",
+    expression: "concerned",
+    line: "I couldn't find your plan's numbers in that file, so these are the demo plan's. Click any number to change it.",
+    options: coverageReviewOptions,
+  },
+  {
+    id: "coverage_error",
+    expression: "concerned",
+    line: "I couldn't read that PDF. {problem}",
+    options: [
+      { label: "Try another PDF", value: "upload" },
+      { label: "Use the demo plan", value: "demo", reaction: demoReaction },
+    ],
+  },
   {
     id: "subscriber",
     expression: "neutral",
-    line: "And your subscriber ID? For this demo, the one filled in works.",
-    options: [{ label: "Continue", value: "continue" }],
+    line: "And your subscriber ID? It's on your insurance card, and it's optional.",
+    options: [
+      { label: "Continue", value: "continue" },
+      { label: "Skip", value: "skip", small: true },
+    ],
   },
   {
     id: "procedure",
     expression: "neutral",
     line: "What's going on with your teeth? If a dentist already recommended something, pick that.",
     // Options: the procedure catalog, then "describe" below.
+  },
+
+  // Summary (the sentence itself is on the plaque, in ui.recap)
+  {
+    id: "recap",
+    expression: "neutral",
+    line: "Here's what I have. Click any underlined part to change it.",
+    options: [{ label: "Next", value: "continue" }],
   },
 
   // Tooth (Phase 1 placeholder uses tooth_done)
@@ -195,6 +257,9 @@ export const status = {
   loadingQuiz: "One moment while I pull up the questions.",
   quizError: "I couldn't load the questions. Check the backend, then reload.",
   thinking: "Working through your plan…",
+  checking: "Checking your details…",
+  readingPdf: "Reading your benefits summary…",
+  recapError: "Something in these details didn't check out.",
   simulationError: "The simulation didn't run. {problems}",
 };
 
@@ -261,15 +326,35 @@ export const ui = {
   quizCounter: "{n} of {total}",
   subscriber: {
     label: "Subscriber ID",
-    invalid: "That doesn't match {insurer}'s format, like {example}.",
+    placeholder: "e.g. {example}",
+  },
+  coverage: {
+    // Each {value} becomes an editable number.
+    sentence:
+      "My plan pays up to {annual_maximum} a year, after a {deductible} deductible. It covers preventive care at {preventive}, basic work at {basic} and major work at {major}.",
+    names: {
+      annual_maximum: "Annual maximum",
+      deductible: "Deductible",
+      preventive: "Preventive coverage",
+      basic: "Basic coverage",
+      major: "Major coverage",
+    } as Record<string, string>,
+    fromPdf: "From page {page}: “{evidence}”",
+    fromDemo: "Not in the PDF, so this is the demo plan's.",
+    conflicting:
+      "The PDF has more than one value for this, so this is the demo plan's.",
+    edited: "Changed by you.",
+    rest: "Waiting periods, frequency limits, fees and claims history are still the demo plan's.",
   },
   recap: {
     // {plan}, {procedure} and {quiz} become editable words.
     sentence:
-      "I'm covered by {plan}, and my dentist recommended {procedure}. I answered {quiz}.",
+      "I'm covered by {plan}, and my dentist recommended {procedure}. I answered {quiz}. This plan year, my plan has paid {used}, and I've met {deductibleMet} of my deductible.",
+    usedName: "Paid by your plan this plan year",
+    usedNote:
+      "What your insurer has paid toward this year's maximum, not the dentist's total charges.",
+    deductibleMetName: "Deductible met this plan year",
     quizCount: "{n} questions",
-    checking: "Checking your details…",
-    problems: "Something didn't check out:",
     retry: "Try again",
   },
   simulation: {

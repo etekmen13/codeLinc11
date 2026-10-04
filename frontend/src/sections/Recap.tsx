@@ -1,11 +1,20 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useParallax } from "../motion/hooks";
 import { procedurePhrases, ui } from "../narrative/script";
 import { fill, parts } from "../narrative/template";
 import { editFrom } from "../narrative/useAdvance";
 import { useScroll } from "../scroll/ScrollProvider";
-import { procedure, questions, samplePlan } from "../state/selectors";
+import { formatMoney } from "../lib/coverage";
+import {
+  baseSample,
+  memberOf,
+  procedure,
+  questions,
+  samplePlan,
+} from "../state/selectors";
 import { useStore } from "../state/store";
+import type { MemberInput } from "../api";
+import { InlineNumber } from "../ui/InlineNumber";
 
 // The intake as one sentence, in the reader's voice, on a plaque. Each
 // answer is an editable word that reopens its beat; after the edit, the
@@ -18,6 +27,45 @@ export function Recap() {
   const onboarding = useStore((s) => s.onboarding);
   const plaque = useRef<HTMLDivElement>(null);
   useParallax(plaque);
+
+  // Balances are edited in place; they belong to this plan year.
+  const setBalance = (patch: Partial<MemberInput>) => {
+    const s = useStore.getState();
+    const base = baseSample(s);
+    if (base)
+      s.setAnswers({
+        member: { ...(s.answers.member ?? memberOf(base)), ...patch },
+      });
+  };
+  const member = sample?.default_member;
+  const balances: Record<string, ReactNode> =
+    sample && member
+      ? {
+          used: (
+            <InlineNumber
+              key="used"
+              value={member.amount_used}
+              label={formatMoney(member.amount_used)}
+              name={ui.recap.usedName}
+              unit="money"
+              max={sample.plan.annual_maximum}
+              note={ui.recap.usedNote}
+              onChange={(v) => setBalance({ amount_used: v })}
+            />
+          ),
+          deductibleMet: (
+            <InlineNumber
+              key="deductibleMet"
+              value={member.deductible_met}
+              label={formatMoney(member.deductible_met)}
+              name={ui.recap.deductibleMetName}
+              unit="money"
+              max={sample.plan.deductible}
+              onChange={(v) => setBalance({ deductible_met: v })}
+            />
+          ),
+        }
+      : {};
 
   const edit = (stopId: string) => {
     editFrom("recap");
@@ -47,7 +95,9 @@ export function Recap() {
           {parts(ui.recap.sentence).map((p, i) =>
             "text" in p ? (
               <span key={i}>{p.text}</span>
-            ) : (
+            ) : p.token in balances ? (
+              balances[p.token]
+            ) : !words[p.token] ? null : (
               <button
                 key={i}
                 type="button"
@@ -61,10 +111,8 @@ export function Recap() {
         </p>
       </div>
       <div className="recap__status" aria-live="polite">
-        {onboarding.loading && <p className="quiet">{ui.recap.checking}</p>}
         {onboarding.problems && (
           <div role="alert">
-            <p>{ui.recap.problems}</p>
             <ul className="plain-list">
               {onboarding.problems.map((p) => (
                 <li key={p}>{p}</li>

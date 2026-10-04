@@ -1,13 +1,108 @@
 // Values derived from the store. Pure functions of state.
 
-import type { OnboardingRequest } from "../api";
+import type { CoverageInput, MemberInput, OnboardingRequest } from "../api";
 import { field } from "../motion/config";
-import { is_valid_subscriber_id } from "../onboarding/subscriber_id";
 import type { Procedure, SamplePlan } from "../types";
 import type { AppState, Remote } from "./store";
 
-export function samplePlan(s: AppState): SamplePlan | null {
+// The chosen sample plan as the backend has it, before the reader's edits.
+export function baseSample(s: AppState): SamplePlan | null {
   return s.form.data?.plans.find((p) => p.plan.id === s.answers.planId) ?? null;
+}
+
+// Balances to send: the reader's, or the sample member's when confirmed
+// numbers would put them over the plan's limits (a smaller maximum or
+// deductible from a PDF). Clamped to those limits, which the backend
+// requires. Null when the sample member's balances stand as they are.
+function balances(
+  base: SamplePlan,
+  coverage: CoverageInput | null,
+  member: MemberInput | null,
+): MemberInput | null {
+  const m = member ?? memberOf(base);
+  const max = coverage?.annual_maximum ?? base.plan.annual_maximum;
+  const deductible = coverage?.deductible ?? base.plan.deductible;
+  if (!member && m.amount_used <= max && m.deductible_met <= deductible)
+    return null;
+  return {
+    ...m,
+    amount_used: Math.min(m.amount_used, max),
+    deductible_met: Math.min(m.deductible_met, deductible),
+  };
+}
+
+// The chosen plan with the reader's confirmed numbers and balances applied,
+// the same way the backend applies them. Memoized, so it can be a selector.
+let memo: {
+  base: SamplePlan;
+  coverage: CoverageInput | null;
+  member: MemberInput | null;
+  out: SamplePlan;
+  balances: MemberInput | null;
+} | null = null;
+function reviewed(s: AppState) {
+  const base = baseSample(s);
+  const { coverage, member } = s.answers;
+  if (!base) return null;
+  if (
+    memo?.base === base &&
+    memo.coverage === coverage &&
+    memo.member === member
+  )
+    return memo;
+  const sent = balances(base, coverage, member);
+  const out: SamplePlan =
+    !coverage && !sent
+      ? base
+      : {
+          ...base,
+          plan: coverage
+            ? {
+                ...base.plan,
+                annual_maximum: coverage.annual_maximum,
+                deductible: coverage.deductible,
+                coinsurance: {
+                  ...base.plan.coinsurance,
+                  preventive: coverage.preventive,
+                  basic: coverage.basic,
+                  major: coverage.major,
+                },
+                plan_year_start: coverage.plan_year_start,
+              }
+            : base.plan,
+          default_member: sent
+            ? { ...base.default_member, ...sent }
+            : base.default_member,
+        };
+  memo = { base, coverage, member, out, balances: sent };
+  return memo;
+}
+
+export function samplePlan(s: AppState): SamplePlan | null {
+  return reviewed(s)?.out ?? null;
+}
+
+// The plan's numbers as the coverage request carries them.
+export function coverageOf(sample: SamplePlan): CoverageInput {
+  const p = sample.plan;
+  return {
+    annual_maximum: p.annual_maximum,
+    deductible: p.deductible,
+    preventive: p.coinsurance.preventive,
+    basic: p.coinsurance.basic,
+    major: p.coinsurance.major,
+    plan_year_start: p.plan_year_start,
+  };
+}
+
+export function memberOf(sample: SamplePlan): MemberInput {
+  const m = sample.default_member;
+  return {
+    as_of: m.as_of,
+    coverage_start: m.coverage_start,
+    amount_used: m.amount_used,
+    deductible_met: m.deductible_met,
+  };
 }
 
 export function procedure(s: AppState): Procedure | null {
@@ -18,11 +113,10 @@ export function procedure(s: AppState): Procedure | null {
   );
 }
 
+// The ID is optional; the backend only limits its length.
+export const SUBSCRIBER_MAX = 100;
 export function subscriberValid(s: AppState): boolean {
-  const sample = samplePlan(s);
-  return (
-    !!sample && is_valid_subscriber_id(sample.plan, s.answers.subscriberId)
-  );
+  return s.answers.subscriberId.length <= SUBSCRIBER_MAX;
 }
 
 // Questions for the chosen procedure, once loaded.
@@ -45,9 +139,11 @@ export function request(s: AppState): OnboardingRequest | null {
   if (!a.subscriberConfirmed || !quizComplete(s)) return null;
   return {
     plan_id: a.planId,
-    subscriber_id: a.subscriberId,
+    subscriber_id: a.subscriberId.trim(),
     procedure_code: a.procedureCode,
     quiz_answers: a.quiz,
+    ...(a.coverage && { coverage: a.coverage }),
+    ...(reviewed(s)?.balances && { member: reviewed(s)!.balances! }),
   };
 }
 

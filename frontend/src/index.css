@@ -201,6 +201,52 @@ h3 {
     0 96%,
     0 96%;
 }
+.editable--muted {
+  color: var(--maroon-64);
+}
+
+/* A number in a sentence that becomes a field; its note says where the
+   value came from. */
+.inline-number {
+  position: relative;
+}
+.inline-number__input {
+  width: auto;
+  font: inherit;
+  padding: 0;
+}
+.inline-number__note {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: calc(100% + 0.5rem);
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--white);
+  border: 1px solid var(--maroon-12);
+  font-size: var(--type-small);
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--maroon);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fade) var(--ease),
+    visibility 0s linear var(--dur-fade);
+}
+.inline-number:hover .inline-number__note,
+.inline-number:focus-within .inline-number__note {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--dur-fade) var(--ease);
+}
+
+.narration__input {
+  margin-bottom: 1rem;
+}
+
 .editable:hover,
 .editable:focus-visible {
   background-size:
@@ -290,11 +336,13 @@ h3 {
   position: relative;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-fade) var(--ease);
 }
+/* Answers fade in once the line is typed, and vanish at once when a new
+   line starts, so a new beat's options never show before its line. */
 .narration__answers[data-ready="true"] {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity var(--dur-fade) var(--ease);
 }
 .narration__field {
   display: grid;
@@ -421,6 +469,7 @@ h3 {
 @media (min-width: 768px) {
   .opening,
   .recap,
+  .coverage,
   .sim--summary,
   .closing {
     padding-left: var(--layout-avatar-slot) !important;
@@ -466,13 +515,18 @@ h3 {
   background: var(--maroon-24);
 }
 
-/* Summary: the reader's own details, on a plaque, set in the text face so
+/* Summary and benefits review: the reader's own details, on a plaque, set in the text face so
    they never read as something the narrator says. */
-.recap {
+.recap,
+.coverage {
   min-height: 100svh;
   padding: 18vh var(--layout-gutter) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .plaque {
+  width: 100%;
   max-width: 36rem;
   padding: 2.25rem 2.5rem;
   background: var(--maroon-6);
@@ -487,7 +541,8 @@ h3 {
 }
 .recap__status {
   margin-top: 2.5rem;
-  max-width: var(--type-measure);
+  width: 100%;
+  max-width: 36rem;
 }
 
 /* Simulation (Phase 1). Content stays in the upper part of the screen,
@@ -1053,6 +1108,7 @@ h3 {
   }
   .opening,
   .recap,
+  .coverage,
   .sim--summary,
   .closing,
   .takeover__body {
@@ -1075,6 +1131,7 @@ h3 {
   }
   .opening,
   .recap,
+  .coverage,
   .sim,
   .closing,
   .careplan {

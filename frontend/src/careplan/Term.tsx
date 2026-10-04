@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { displayText } from "../lib/displayText";
 import { useExplanation } from "../hooks/useExplanation";
 import { ui } from "../narrative/script";
 
@@ -41,10 +42,10 @@ export function Term({ children, note, explainBody }: Props) {
           <span className="term__more">{ui.careplan.explaining}</span>
         )}
         {explanation.text && (
-          <span className="term__more">{explanation.text}</span>
+          <span className="term__more">{displayText(explanation.text)}</span>
         )}
         {explanation.error && (
-          <span className="term__more">{explanation.error}</span>
+          <span className="term__more">{displayText(explanation.error)}</span>
         )}
       </span>
     </span>

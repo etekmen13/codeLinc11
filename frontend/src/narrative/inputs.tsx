@@ -2,11 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { map_treatment, problems_of } from "../api";
-import {
-  is_valid_subscriber_id,
-  normalize_subscriber_id,
-} from "../onboarding/subscriber_id";
-import { samplePlan } from "../state/selectors";
+import { normalize_subscriber_id } from "../onboarding/subscriber_id";
+import { samplePlan, SUBSCRIBER_MAX } from "../state/selectors";
 import { useStore } from "../state/store";
 import type { CdtMapping, Procedure } from "../types";
 import { answer } from "./answer";
@@ -27,13 +24,13 @@ export function SubscriberInput({ stop }: { stop: Stop }) {
 function SubscriberField({ stop, saved }: { stop: Stop; saved: string }) {
   const sample = useStore(samplePlan);
   const [draft, setDraft] = useState(saved);
-  const [touched, setTouched] = useState(false);
   if (!sample) return null;
-  const valid = is_valid_subscriber_id(sample.plan, draft);
+  const filled = draft.trim() !== "";
   const commit = (option: OptionView) => {
-    useStore
-      .getState()
-      .setAnswers({ subscriberId: normalize_subscriber_id(draft) });
+    useStore.getState().setAnswers({
+      subscriberId:
+        option.value === "skip" ? "" : normalize_subscriber_id(draft),
+    });
     answer(stop, option);
   };
   return (
@@ -43,34 +40,23 @@ function SubscriberField({ stop, saved }: { stop: Stop; saved: string }) {
       </label>
       <input
         id="subscriber-id"
-        className="inline-input"
+        className="inline-input narration__input"
         value={draft}
+        maxLength={SUBSCRIBER_MAX}
+        placeholder={fill(ui.subscriber.placeholder, {
+          example: sample.plan.subscriber_id_example,
+        })}
         spellCheck={false}
         autoComplete="off"
-        aria-invalid={touched && !valid}
-        aria-describedby="subscriber-hint"
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => setTouched(true)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && valid) commit(stop.beat!.options[0]);
+          if (e.key === "Enter" && filled) commit(stop.beat!.options[0]);
         }}
       />
-      <p
-        id="subscriber-hint"
-        className="narration__hint"
-        role={touched && !valid ? "alert" : undefined}
-      >
-        {touched && !valid
-          ? fill(ui.subscriber.invalid, {
-              insurer: sample.plan.insurer,
-              example: sample.plan.subscriber_id_example,
-            })
-          : ""}
-      </p>
       <Options
         options={stop.beat!.options}
         onPick={commit}
-        disabled={() => !valid}
+        disabled={(o) => o.value !== "skip" && !filled}
         keys={false}
       />
     </div>

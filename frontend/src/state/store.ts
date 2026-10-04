@@ -3,7 +3,12 @@
 // beats is derived from this state in narrative/flow.ts.
 
 import { create } from "zustand";
-import type { FormOptions } from "../api";
+import type {
+  CoverageExtraction,
+  CoverageInput,
+  FormOptions,
+  MemberInput,
+} from "../api";
 import type { Reaction } from "../narrative/script";
 import type {
   CareComparison,
@@ -19,10 +24,17 @@ export interface Answers {
   started: boolean;
   acute: "yes" | "no" | null;
   planId: string | null;
+  // The plan's numbers from an uploaded benefits summary, confirmed by the
+  // reader; null uses the sample plan's. Cleared when the plan changes.
+  coverage: CoverageInput | null;
+  coverageDone: boolean;
   subscriberId: string;
   subscriberConfirmed: boolean;
   procedureCode: string | null;
   quiz: QuizAnswers;
+  // Balances edited on the summary; null uses the sample member's.
+  member: MemberInput | null;
+  recapDone: boolean;
   toothDone: boolean;
   simIntroDone: boolean;
   simSummaryDone: boolean;
@@ -53,10 +65,14 @@ export const EMPTY_ANSWERS: Answers = {
   started: false,
   acute: null,
   planId: null,
+  coverage: null,
+  coverageDone: false,
   subscriberId: "",
   subscriberConfirmed: false,
   procedureCode: null,
   quiz: {},
+  member: null,
+  recapDone: false,
   toothDone: false,
   simIntroDone: false,
   simSummaryDone: false,
@@ -68,6 +84,8 @@ export const DEMO_ANSWERS: Answers = {
   started: true,
   acute: "no",
   planId: "keystone-ppo",
+  coverage: null,
+  coverageDone: true,
   subscriberId: "K417-2290-08",
   subscriberConfirmed: true,
   procedureCode: "D3330",
@@ -80,9 +98,29 @@ export const DEMO_ANSWERS: Answers = {
     cold_sensitivity: "lingers",
     biting_pain: "no",
   },
+  member: null,
+  recapDone: false,
   toothDone: false,
   simIntroDone: false,
   simSummaryDone: false,
+};
+
+// A benefits summary being read. draft holds the numbers shown for review:
+// the sample plan's, with whatever the PDF yielded on top.
+export interface CoverageUpload {
+  status: "idle" | "reading" | "review" | "error";
+  result: CoverageExtraction | null;
+  draft: CoverageInput | null;
+  edited: string[]; // numbers the reader changed on the plaque
+  error: string | null;
+}
+
+export const NO_UPLOAD: CoverageUpload = {
+  status: "idle",
+  result: null,
+  draft: null,
+  edited: [],
+  error: null,
 };
 
 export interface AppState {
@@ -93,6 +131,7 @@ export interface AppState {
   simulation: Remote<ToothSimulation>;
   comparison: Remote<Comparison>;
   carePlan: Remote<CarePlan>;
+  coverageUpload: CoverageUpload;
 
   radius: number;
   tolerance: string; // a risk band name
@@ -125,6 +164,7 @@ export const useStore = create<AppState>()((set) => ({
   simulation: idle(),
   comparison: idle(),
   carePlan: idle(),
+  coverageUpload: NO_UPLOAD,
   radius: 25,
   tolerance: "low",
   credential: null,
@@ -142,6 +182,7 @@ export const useStore = create<AppState>()((set) => ({
   restart: () =>
     set({
       answers: EMPTY_ANSWERS,
+      coverageUpload: NO_UPLOAD,
       providerId: null,
       timingId: null,
       credential: null,

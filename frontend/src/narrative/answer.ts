@@ -2,7 +2,8 @@
 // useAdvance then scrolls on once the reaction has played.
 
 import { normalize_subscriber_id } from "../onboarding/subscriber_id";
-import { useStore } from "../state/store";
+import { NO_UPLOAD, useStore } from "../state/store";
+import { pickCoveragePdf } from "./coverage";
 import type { OptionView, Stop } from "./flow";
 
 export function answer(stop: Stop, option: OptionView): void {
@@ -16,21 +17,39 @@ export function answer(stop: Stop, option: OptionView): void {
     setAnswers({ acute: option.value as "yes" | "no" });
     advance = option.value === "no"; // "yes" opens the takeover
   } else if (id === "insurer") {
-    // A new insurer has a new ID format, so prefill its demo ID.
-    const sample = s.form.data?.plans.find((p) => p.plan.id === option.value);
-    if (option.value !== answers.planId && sample)
+    // Uploaded numbers and edited balances belong to the old plan.
+    if (option.value !== answers.planId) {
       setAnswers({
         planId: option.value,
-        subscriberId: sample.plan.subscriber_id_example,
+        coverage: null,
+        coverageDone: answers.coverage ? false : answers.coverageDone,
+        member: null,
       });
+      s.patch({ coverageUpload: NO_UPLOAD });
+    }
+  } else if (id.startsWith("coverage")) {
+    if (option.value === "upload") {
+      pickCoveragePdf(); // the beat follows the upload from here
+      return;
+    }
+    if (option.value === "confirm")
+      setAnswers({ coverage: s.coverageUpload.draft, coverageDone: true });
+    else {
+      setAnswers({ coverage: null, coverageDone: true });
+      s.patch({ coverageUpload: NO_UPLOAD });
+    }
   } else if (id === "subscriber")
     setAnswers({
       subscriberConfirmed: true,
-      subscriberId: normalize_subscriber_id(answers.subscriberId),
+      subscriberId:
+        option.value === "skip"
+          ? ""
+          : normalize_subscriber_id(answers.subscriberId),
     });
   else if (id === "procedure") setAnswers({ procedureCode: option.value });
   else if (id.startsWith("quiz:"))
     setAnswers({ quiz: { ...answers.quiz, [id.slice(5)]: option.value } });
+  else if (id === "recap") setAnswers({ recapDone: true });
   else if (id === "tooth_done") setAnswers({ toothDone: true });
   else if (id === "sim_intro") {
     if (option.value === "replay") {

@@ -18,6 +18,7 @@ import { ScrollProvider, useScroll } from "./scroll/ScrollProvider";
 import { AcuteTakeover } from "./sections/AcuteTakeover";
 import { CarePlan } from "./sections/CarePlan";
 import { Closing } from "./sections/Closing";
+import { Coverage } from "./sections/Coverage";
 import { Opening } from "./sections/Opening";
 import { Providers } from "./sections/Providers";
 import { Recap } from "./sections/Recap";
@@ -122,6 +123,7 @@ function StopView({ stop, reached }: { stop: Stop; reached: boolean }) {
   return (
     <div ref={ref} className={`stop stop--${stop.kind}`} data-stop={stop.id}>
       {stop.id === "intro" && <Opening />}
+      {stop.kind === "coverage" && <Coverage />}
       {stop.kind === "recap" && <Recap />}
       {stop.kind === "sim_intro" && <SimIntro reached={reached} />}
       {stop.kind === "sim_summary" && <SimSummary />}

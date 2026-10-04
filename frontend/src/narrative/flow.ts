@@ -23,6 +23,7 @@ import {
   ui,
 } from "./script";
 import type { Expression, Reaction } from "./script";
+import { foundFields } from "./coverage";
 import { fill, type Values } from "./template";
 
 export type SectionId = keyof typeof ui.sections;
@@ -31,6 +32,7 @@ export const SECTION_ORDER = Object.keys(ui.sections) as SectionId[];
 
 export type StopKind =
   | "beat"
+  | "coverage"
   | "recap"
   | "sim_intro"
   | "sim_summary"
@@ -175,6 +177,17 @@ export function buildFlow(s: AppState): Flow {
 
     if (
       !push({
+        id: "coverage",
+        section: "intake",
+        kind: "coverage",
+        beat: coverageBeat(s),
+        complete: a.coverageDone,
+      })
+    )
+      return;
+
+    if (
+      !push({
         id: "subscriber",
         section: "intake",
         kind: "beat",
@@ -248,12 +261,18 @@ export function buildFlow(s: AppState): Flow {
     }
 
     const key = requestKey(s);
+    const checked = fresh(s.onboarding, key) !== null;
     if (
       !push({
         id: "recap",
         section: "summary",
         kind: "recap",
-        complete: fresh(s.onboarding, key) !== null,
+        beat: checked
+          ? beat("recap")
+          : s.onboarding.problems
+            ? statusBeat("recap", status.recapError, "concerned")
+            : statusBeat("recap", status.checking),
+        complete: checked && a.recapDone,
       })
     )
       return;
@@ -359,6 +378,26 @@ export function buildFlow(s: AppState): Flow {
 
   const gate = done ? null : all[all.length - 1];
   return { stops: all, gateId: gate && !gate.complete ? gate.id : null };
+}
+
+// The benefits-summary beat follows the upload: ask, read, then review.
+function coverageBeat(s: AppState): BeatView {
+  const up = s.coverageUpload;
+  const a = s.answers;
+  if (up.status === "reading") return statusBeat("coverage", status.readingPdf);
+  if (up.status === "error")
+    return beat("coverage_error", { problem: up.error ?? "" });
+  if (up.status === "review")
+    return beat(
+      foundFields(up.result).length ? "coverage_review" : "coverage_none",
+      {},
+      { selected: a.coverage ? "confirm" : null },
+    );
+  return beat(
+    "coverage",
+    {},
+    { selected: a.coverageDone && !a.coverage ? "demo" : null },
+  );
 }
 
 function simSummaryBeat(
