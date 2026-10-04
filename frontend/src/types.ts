@@ -127,3 +127,154 @@ export interface ProvidersResult {
   in_network: ProviderCard[];
   out_of_network: ProviderCard[];
 }
+
+// Care plan: POST /api/care-plan/sequence. Amounts are in dollars; expected
+// values are averages over simulated futures.
+
+export type PaymentPath = "insured" | "cash";
+
+export interface RiskBand {
+  name: string;
+  upper: number | null; // escalation probability below this; null = no limit
+}
+
+export interface BandSegment {
+  band: string;
+  start_month: number;
+  end_month: number; // inclusive
+}
+
+// How the untreated tooth may progress, month by month from as_of.
+export interface RiskSummary {
+  low_risk_until_month: number; // last month risk stays in the lowest band
+  band_limits: RiskBand[];
+  bands: string[]; // band name for each month 0..horizon
+  band_ranges: Record<string, BandSegment | null>;
+  band_segments: BandSegment[];
+  risk_at_low_risk_until: number;
+  risk_at_horizon: number;
+  worst_state_at_horizon: number;
+}
+
+export interface CarePlanLine {
+  cdt_code: string;
+  procedure_name: string;
+  provider_id: string; // differs from the chosen dentist for a referral
+  provider_name: string;
+  in_network: boolean;
+  path: PaymentPath;
+  provider_fee: number;
+  plan_pays: number;
+  you_pay: number;
+  denial_reason: "waiting_period" | "frequency_limit" | null;
+}
+
+export interface CarePlanVisit {
+  date: string; // ISO date
+  tooth_state: ToothState;
+  lines: CarePlanLine[]; // billing order; empty if nothing is needed
+  plan_pays: number;
+  you_pay: number;
+}
+
+// One tooth state the futures can reach by an option's date.
+export interface CarePlanOutcome {
+  probability: number;
+  visit: CarePlanVisit;
+}
+
+export interface CostStats {
+  mean: number;
+  p5: number;
+  p95: number;
+  cvar95: number; // mean of the costliest 5% of futures
+}
+
+export interface FsaSummary {
+  election: number; // for the option's FSA year; 0 if this year or none
+  from_balance: number;
+  from_election: number;
+  balance_unused: number;
+  forfeited: number;
+}
+
+// A date and payment path for the procedure, priced across futures.
+export interface CarePlanOption {
+  date: string; // ISO date
+  path: PaymentPath;
+  labels: string[]; // why the date was priced, e.g. "after_plan_reset"
+  month: number; // simulation month the date falls in
+  escalation_probability: number; // chance the tooth is worse by the date
+  band: string;
+  outcomes: CarePlanOutcome[]; // most likely first
+  member_share: CostStats; // what the member owes the dentists
+  cost: CostStats; // after FSA and tax: what options are compared on
+  fsa: FsaSummary;
+}
+
+// Baseline's cost minus an option's, paired future by future.
+export interface Savings {
+  mean: number;
+  p5: number;
+  p95: number;
+  probability_costs_more: number; // share of futures where it costs more
+}
+
+export interface ProviderHint {
+  provider_id: string;
+  name: string;
+  in_network: boolean;
+  distance_miles: number;
+  option: CarePlanOption; // that dentist's lowest-cost option
+  savings: Savings; // versus the chosen dentist's
+}
+
+export interface MaximumUsage {
+  plan_year_start: string; // ISO date
+  resets_on: string; // ISO date, first day of the next plan year
+  annual_maximum: number;
+  used: number; // by claims before the visit
+  scheduled: number; // expected plan payment for the visit
+  remaining: number;
+}
+
+export interface FsaTracker {
+  balance: number;
+  spend_deadline: string; // ISO date
+  carryover_limit: number;
+  spent: number;
+  unused: number;
+  forfeited: number; // lost at the deadline; the rest carries over
+  election: number; // lowest expected cost for the visit's FSA year
+  election_quantile: number; // the tax rate
+}
+
+export interface Reminder {
+  kind: "annual_maximum_expires" | "fsa_forfeited" | "cleaning_covered";
+  deadline: string; // ISO date
+  amount: number;
+  message: string;
+}
+
+export interface CarePlan {
+  as_of: string; // ISO date
+  provider_id: string;
+  tolerance: string; // highest risk band accepted
+  tail_weight: number;
+  risk_bands: RiskBand[]; // the tolerances a request can choose from
+  options: CarePlanOption[]; // date order
+  // Lowest expected cost plus tail_weight times the costliest 5% of
+  // futures, within the tolerance
+  lowest_cost: CarePlanOption;
+  baseline: CarePlanOption; // earliest date, insured
+  savings: Savings; // baseline minus lowest_cost
+  lever_savings: Record<string, number>; // timing, cash, fsa_planning
+  beyond_tolerance: CarePlanOption | null; // cheaper but riskier
+  beyond_tolerance_savings: Savings | null; // versus lowest_cost
+  provider_hint: ProviderHint | null;
+  maximum: MaximumUsage[];
+  fsa: FsaTracker | null;
+  reminders: Reminder[];
+  risk: RiskSummary;
+  assumptions: string[];
+}
