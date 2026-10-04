@@ -7,6 +7,7 @@ taken from any real policy. Fees are rough US averages.
 
 import re
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 
 from progression import STATE_INDEX
@@ -42,6 +43,12 @@ class Plan:
 
 
 @dataclass(frozen=True)
+class PastService:
+    cdt_code: str
+    date_of_service: str  # ISO date
+
+
+@dataclass(frozen=True)
 class MemberStatus:
     """Per-employee state. In v0 each sample plan ships with a default member;
     a real system would look this up by subscriber ID."""
@@ -49,6 +56,10 @@ class MemberStatus:
     coverage_start: str  # ISO date; waiting periods count from here
     amount_used: float  # this plan year
     deductible_met: float  # this plan year
+    # Claims history, oldest first; frequency limits count these. Tracked
+    # apart from amount_used, which also covers exams, X-rays, and other
+    # services outside this catalog.
+    past_services: tuple[PastService, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -116,7 +127,17 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_pattern=r"SMT-\d{7}",
             subscriber_id_example="SMT-4821937",
         ),
-        MemberStatus(coverage_start="2025-01-01", amount_used=350, deductible_met=50),
+        MemberStatus(
+            coverage_start="2025-01-01",
+            amount_used=350,
+            deductible_met=50,
+            # Two cleanings in the last 12 months: the next is covered from
+            # 2026-10-15.
+            past_services=(
+                PastService("D1110", "2025-10-15"),
+                PastService("D1110", "2026-04-14"),
+            ),
+        ),
     ),
     SamplePlan(
         # Waiting periods; the member enrolled mid-year, so major work is not
@@ -192,7 +213,20 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_pattern=r"K\d{3}-\d{4}-\d{2}",
             subscriber_id_example="K417-2290-08",
         ),
-        MemberStatus(coverage_start="2024-01-01", amount_used=1100, deductible_met=100),
+        MemberStatus(
+            coverage_start="2024-01-01",
+            amount_used=1100,
+            deductible_met=100,
+            # A root canal on another tooth used most of this year's maximum.
+            # No crown: limits are not per tooth yet, so a past crown would
+            # count against every tooth.
+            past_services=(
+                PastService("D1110", "2025-08-20"),
+                PastService("D1110", "2026-02-18"),
+                PastService("D3330", "2026-03-04"),
+                PastService("D2391", "2026-05-06"),
+            ),
+        ),
     ),
 )
 
@@ -418,6 +452,12 @@ def _check() -> None:
                 raise ValueError(
                     f"plan {s.plan.id}: fee schedule must price every procedure"
                 )
+        history = s.default_member.past_services
+        if any(h.cdt_code not in PROCEDURES_BY_CODE for h in history):
+            raise ValueError(f"plan {s.plan.id}: past service has unknown procedure")
+        dates = [date.fromisoformat(h.date_of_service) for h in history]
+        if dates != sorted(dates):
+            raise ValueError(f"plan {s.plan.id}: past services must be oldest first")
     if ALL_PLANS != PLANS_BY_ID.keys():
         raise ValueError("ALL_PLANS is out of date")
     if len(PROVIDERS_BY_ID) != len(PROVIDERS):
