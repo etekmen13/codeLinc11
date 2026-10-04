@@ -38,6 +38,38 @@ export function owed(option: CarePlanOption): {
   };
 }
 
+// How an option's bill splits, expected over the tooth's futures: what the
+// plan pays, what the member owes (the balance bill included), and what the
+// dentist writes off (the in-network or cash discount).
+export interface BillSplit {
+  fee: number;
+  planPays: number;
+  youPay: number;
+  balance: number;
+  writtenOff: number;
+}
+
+export function billSplit(option: CarePlanOption): BillSplit {
+  let fee = 0;
+  let planPays = 0;
+  let youPay = 0;
+  let balance = 0;
+  for (const o of option.outcomes)
+    for (const line of o.visit.lines) {
+      fee += o.probability * line.provider_fee;
+      planPays += o.probability * line.plan_pays;
+      youPay += o.probability * line.you_pay;
+      balance += o.probability * line.balance_billing;
+    }
+  return {
+    fee,
+    planPays,
+    youPay,
+    balance,
+    writtenOff: Math.max(0, fee - planPays - youPay),
+  };
+}
+
 // Expected plan payment for an option, averaged over the tooth's futures.
 export function expectedPlanPays(option: CarePlanOption): number {
   return option.outcomes.reduce(

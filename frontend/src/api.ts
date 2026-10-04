@@ -56,6 +56,7 @@ export interface OnboardingRequest {
   subscriber_id?: string;
   procedure_code: string;
   quiz_answers: QuizAnswers;
+  use_fsa?: boolean; // default true; false plans as if there were no FSA
 }
 
 export interface ProvidersRequest extends OnboardingRequest {

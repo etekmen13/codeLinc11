@@ -173,10 +173,12 @@ export function riskSpread(s: AppState): number {
 
 export function comparisonKey(s: AppState): string | null {
   const key = requestKey(s);
-  return key && `${key}|${s.radius}|${s.tolerance}`;
+  return key && `${key}|${s.radius}|${s.tolerance}|${s.useFsa}`;
 }
 
 export function carePlanKey(s: AppState): string | null {
   const key = requestKey(s);
-  return key && s.providerId && `${key}|${s.providerId}|${s.tolerance}`;
+  return (
+    key && s.providerId && `${key}|${s.providerId}|${s.tolerance}|${s.useFsa}`
+  );
 }

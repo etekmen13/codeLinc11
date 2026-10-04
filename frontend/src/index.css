@@ -738,62 +738,74 @@ h3 {
   flex: 1;
 }
 
-/* Providers. */
+/* Providers: two centered columns, in network and out. */
 .providers {
   min-height: 100svh;
-  padding: 9vh 0 7vh;
+  padding: 9vh var(--layout-gutter) 12vh;
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  align-items: center;
+  gap: 3.5rem;
 }
 .providers__head {
-  padding: 0 var(--layout-gutter);
   display: grid;
+  justify-items: center;
   gap: 1.5rem;
+  text-align: center;
+  max-width: 44rem;
 }
 .providers__filters {
   font-family: var(--font-display);
   font-size: calc(var(--type-narration) * 0.9);
   font-weight: 360;
   line-height: 1.35;
-  max-width: 34ch;
 }
-.providers__rows {
+.providers__tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem 2.5rem;
+}
+.providers__columns {
+  width: 100%;
+  max-width: 76rem;
   display: grid;
-  gap: 2.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
   transition: opacity var(--dur-fade) var(--ease);
 }
-.providers__rows[data-loading="true"] {
+.providers__columns[data-loading="true"] {
   opacity: 0.4;
 }
-.provider-row__label {
-  padding: 0 var(--layout-gutter);
-  font-size: var(--type-small);
-  color: var(--maroon-64);
-  margin-bottom: 0.75rem;
+.provider-col__head {
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--maroon);
 }
-.provider-row__viewport {
-  overflow: hidden;
-  padding: 0 var(--layout-gutter);
+.provider-col__label {
+  font-family: var(--font-display);
+  font-size: var(--type-display-l);
+  font-weight: 380;
+  line-height: 1.06;
+  letter-spacing: -0.015em;
 }
-.provider-row__track {
-  display: flex;
-  gap: 4rem;
-  width: max-content;
+.provider-col__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.providers__foot {
-  padding: 0 var(--layout-gutter);
-}
+
+/* One dentist: name and distance on the left, the figure on the right, the
+   bill bar underneath. The whole row is the choose button's hit area. */
 .provider {
   position: relative;
-  width: 17rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--maroon-12);
-  transition: border-color var(--dur-fade) var(--ease);
-}
-.provider:hover,
-.provider[data-selected="true"] {
-  border-top-color: var(--maroon);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.35rem 1.5rem;
+  padding: 1.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--maroon-12);
 }
 .provider__name {
   font-size: var(--type-lead);
@@ -806,35 +818,36 @@ h3 {
   inset: 0;
 }
 .provider__meta,
-.provider__sub {
+.provider__fsa {
+  margin-top: 0.3rem;
   font-size: var(--type-small);
   color: var(--maroon-64);
 }
+.provider__price {
+  text-align: right;
+}
 .provider .figure {
-  margin: 1.25rem 0 0.4rem;
+  transition: color var(--dur-fade) var(--ease);
 }
-.cost-bar {
-  display: flex;
-  gap: 2px;
-  height: 4px;
-  margin-top: 1rem;
+.provider:hover .figure,
+.provider[data-selected="true"] .figure {
+  color: var(--wine);
 }
-.cost-bar__plan {
-  background: var(--maroon-24);
-}
-.cost-bar__you {
-  background: var(--maroon);
-}
-.cost-bar__gap {
-  background: var(--orange);
-  min-width: 3px;
+.provider[data-selected="true"] {
+  border-bottom-color: var(--maroon);
 }
 .provider__note {
   position: absolute;
-  background: var(--white);
-  top: calc(100% + 0.75rem);
+  z-index: 2;
+  top: calc(100% - 0.25rem);
   left: 0;
-  right: -2rem;
+  right: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--white);
+  border: 1px solid var(--maroon-12);
+  font-size: var(--type-small);
+  color: var(--maroon-64);
+  line-height: 1.5;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fade) var(--ease);
@@ -842,6 +855,87 @@ h3 {
 .provider:hover .provider__note,
 .provider:focus-within .provider__note {
   opacity: 1;
+}
+
+/* The bill bar and its legend. */
+.bill-bar {
+  grid-column: 1 / -1;
+  margin-top: 0.6rem;
+}
+.bill-bar__fill {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+.bill-bar__plan,
+.bill-bar__you,
+.bill-bar__gap,
+.bill-bar__waived {
+  display: block;
+}
+.bill-bar__plan {
+  background: var(--maroon-24);
+}
+.bill-bar__you {
+  background: var(--maroon);
+}
+.bill-bar__gap {
+  background: var(--orange);
+}
+.bill-bar__waived {
+  box-shadow: inset 0 0 0 1px var(--maroon-24);
+}
+.bill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-micro);
+  color: var(--maroon-64);
+}
+.bill-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bill-legend span {
+  width: 0.9rem;
+  height: 6px;
+}
+
+/* A two-state switch. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--type-small);
+}
+.switch__track {
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: var(--maroon-24);
+  transition: background var(--dur-fade) var(--ease);
+}
+.switch__thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform var(--dur-fade) var(--ease);
+}
+.switch[aria-checked="true"] .switch__track {
+  background: var(--maroon);
+}
+.switch[aria-checked="true"] .switch__thumb {
+  transform: translateX(1rem);
 }
 
 /* Inline choice lists. */
@@ -1240,7 +1334,7 @@ h3 {
 }
 
 /* Narrow screens: var(--layout-gutter-narrow) gutters, narration across the lower half, provider
-   rows stacked. */
+   columns stacked. */
 @media (max-width: 767px) {
   /* The narrator moves to the top, smaller; the bust steps out. */
   .lincoln {
@@ -1292,28 +1386,16 @@ h3 {
   .plaque {
     padding: 1.5rem 1.25rem;
   }
-  .providers__head,
-  .provider-row__label,
-  .provider-row__viewport,
-  .providers__foot {
+  .providers {
     padding-left: var(--layout-gutter-narrow);
     padding-right: var(--layout-gutter-narrow);
   }
-  .provider-row__viewport {
-    overflow: visible;
+  .providers__columns {
+    grid-template-columns: 1fr;
+    gap: 3.5rem;
   }
-  .provider-row__track {
-    flex-direction: column;
-    width: auto;
-    gap: 2.5rem;
-  }
-  .provider {
-    width: auto;
-  }
-  .provider__note {
-    position: static;
-    opacity: 1;
-    margin-top: 0.75rem;
+  .provider-col__label {
+    font-size: var(--type-figure);
   }
   .careplan__compare {
     grid-template-columns: 1fr 1fr;
@@ -1344,20 +1426,13 @@ h3 {
   }
 }
 
-/* Reduced motion: no parallax, no typewriter (handled in code), provider
-   rows stack, transitions become instant. */
+/* Reduced motion: no parallax, no typewriter (handled in code),
+   transitions become instant. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
     animation: none !important;
-  }
-  .provider-row__viewport {
-    overflow: visible;
-  }
-  .provider-row__track {
-    flex-wrap: wrap;
-    width: auto;
   }
 }

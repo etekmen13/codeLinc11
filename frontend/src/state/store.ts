@@ -137,6 +137,9 @@ export interface AppState {
   radius: number;
   tolerance: string; // a risk band name
   credential: string | null; // null = any
+  // Count the member's FSA when pricing dentists and the care plan. Off
+  // plans as if there were no FSA.
+  useFsa: boolean;
   providerId: string | null;
   timingId: string | null; // chosen timing plan; null = lowest cost
 
@@ -174,6 +177,7 @@ export const useStore = create<AppState>()((set) => ({
   radius: 25,
   tolerance: "low",
   credential: null,
+  useFsa: true,
   providerId: null,
   timingId: null,
   reaction: null,
@@ -194,6 +198,7 @@ export const useStore = create<AppState>()((set) => ({
       providerId: null,
       timingId: null,
       credential: null,
+      useFsa: true,
       reaction: null,
       advanceFrom: null,
       simStage: "idle",
