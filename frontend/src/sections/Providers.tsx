@@ -4,7 +4,7 @@
 // screens the columns stack.
 
 import { type ReactNode } from "react";
-import { billSplit, owed, type BillSplit } from "../careplan/derive";
+import { billSplit, owed } from "../careplan/derive";
 import { band_label } from "../lib/labels";
 import { formatISODate, formatMoney } from "../lib/coverage";
 import { procedurePhrases, ui } from "../narrative/script";
@@ -14,6 +14,7 @@ import { useScroll } from "../scroll/ScrollProvider";
 import { procedure, samplePlan } from "../state/selectors";
 import { useStore } from "../state/store";
 import type { DentistOption } from "../types";
+import { BillBar, BillLegend } from "../ui/BillBar";
 import { InlineChoice } from "../ui/InlineChoice";
 
 const RADII = [5, 10, 25, 50];
@@ -142,7 +143,7 @@ export function Providers() {
               </span>
             </button>
           )}
-          <Legend />
+          <BillLegend />
         </div>
         <div aria-live="polite">
           {remote.loading && <p className="quiet">{ui.providers.loading}</p>}
@@ -295,60 +296,5 @@ function ProviderEntry({
       <BillBar split={split} maxFee={maxFee} />
       <p className="provider__note">{details.join(" · ")}</p>
     </li>
-  );
-}
-
-// The expected bill as one bar, as long as the bill relative to the largest
-// one shown: plan pays, you pay, the balance bill (orange), and what the
-// dentist waives.
-function BillBar({ split, maxFee }: { split: BillSplit; maxFee: number }) {
-  const segments = [
-    ["plan", split.planPays],
-    ["you", Math.max(0, split.youPay - split.balance)],
-    ["gap", split.balance],
-    ["waived", split.writtenOff],
-  ] as const;
-  return (
-    <div className="bill-bar" aria-hidden="true">
-      <div
-        className="bill-bar__fill"
-        style={{ width: `${(split.fee / maxFee) * 100}%` }}
-      >
-        {segments.map(
-          ([kind, amount]) =>
-            amount >= 0.5 && (
-              <span
-                key={kind}
-                className={`bill-bar__${kind}`}
-                style={{ flexGrow: amount }}
-              />
-            ),
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Legend() {
-  const l = ui.providers.legend;
-  return (
-    <ul className="bill-legend" aria-hidden="true">
-      <li>
-        <span className="bill-bar__plan" />
-        {l.plan}
-      </li>
-      <li>
-        <span className="bill-bar__you" />
-        {l.you}
-      </li>
-      <li>
-        <span className="bill-bar__gap" />
-        {l.gap}
-      </li>
-      <li>
-        <span className="bill-bar__waived" />
-        {l.waived}
-      </li>
-    </ul>
   );
 }
