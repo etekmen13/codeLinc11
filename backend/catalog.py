@@ -111,11 +111,6 @@ class Provider:
     networks: frozenset[str]  # ids of the plans this dentist is in network with
     fees: dict[str, float]  # procedure code -> billed fee; missing = not offered
     cash_prices: dict[str, float]  # procedure code -> self-pay price; missing = none
-    # In network, this office's negotiated fees as a multiple of the plan's
-    # schedule. Insurers contract different fee levels by office (Delta's
-    # PPO and Premier networks, for example), so two in-network dentists can
-    # charge the same member different amounts.
-    contract_rate: float = 1.0
 
 
 # The date every sample member's balances describe.
@@ -425,15 +420,12 @@ PROVIDERS: tuple[Provider, ...] = (
         },
     ),
     Provider(
-        # A richer contract than Uptown: the same plan pays it more, and
-        # the member's share grows with it.
         id="southpark-dental",
         name="SouthPark Dental",
         lat=35.1500,
         lon=-80.8300,
         credentials=("DMD",),
         networks=ALL_PLANS,
-        contract_rate=1.1,
         fees={
             "D1110": 130,
             "D1206": 45,
@@ -454,7 +446,6 @@ PROVIDERS: tuple[Provider, ...] = (
         lon=-80.8020,
         credentials=("DDS",),
         networks=frozenset({"summit-ppo-plus", "keystone-ppo"}),
-        contract_rate=0.9,
         fees={"D1110": 105, "D1206": 30, "D2391": 175, "D7140": 195},
         cash_prices={},
     ),
@@ -532,7 +523,6 @@ PROVIDERS: tuple[Provider, ...] = (
         lon=-80.7350,
         credentials=("DMD",),
         networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic"}),
-        contract_rate=0.95,
         fees={
             "D1110": 110,
             "D1206": 35,
@@ -546,10 +536,9 @@ PROVIDERS: tuple[Provider, ...] = (
         cash_prices={},
     ),
     # The rest fill out each plan's columns to eight in network and eight
-    # out. Every one is a general office that does all eight
-    # procedures, bills at or above every plan's allowed amount, and keeps
-    # any cash price at or below its billed fee. Contract rates spread the
-    # in-network prices from 0.80 to 1.15 of the plan's schedule.
+    # out. Every one is a general office that does all eight procedures,
+    # bills at or above every plan's allowed amount, and keeps any cash
+    # price at or below its billed fee.
     Provider(
         # The highest sticker prices in network: shows that the negotiated
         # fee, not the bill, sets what an in-network member pays.
@@ -603,15 +592,12 @@ PROVIDERS: tuple[Provider, ...] = (
         },
     ),
     Provider(
-        # The leanest contract in network: the lowest in-network prices,
-        # and the farthest drive.
         id="matthews-dental",
         name="Matthews Dental Associates",
         lat=35.1168,
         lon=-80.7237,
         credentials=("DDS",),
         networks=ALL_PLANS,
-        contract_rate=0.8,
         fees={
             "D1110": 125,
             "D1206": 40,
@@ -634,14 +620,12 @@ PROVIDERS: tuple[Provider, ...] = (
         },
     ),
     Provider(
-        # The richest contract in network: the highest in-network prices.
         id="cotswold-family",
         name="Cotswold Family Dentistry",
         lat=35.1850,
         lon=-80.7950,
         credentials=("DMD",),
         networks=ALL_PLANS,
-        contract_rate=1.15,
         fees={
             "D1110": 135,
             "D1206": 45,
@@ -655,14 +639,13 @@ PROVIDERS: tuple[Provider, ...] = (
         cash_prices={},
     ),
     Provider(
-        # In network for MetLife and Lincoln, not Delta, on a lean contract.
+        # In network for MetLife and Lincoln, not Delta.
         id="east-charlotte",
         name="East Charlotte Dental",
         lat=35.2050,
         lon=-80.7300,
         credentials=("DDS",),
         networks=frozenset({"harbor-ppo-basic", "keystone-ppo"}),
-        contract_rate=0.88,
         fees={
             "D1110": 115,
             "D1206": 38,
@@ -868,8 +851,6 @@ def _check() -> None:
             raise ValueError(f"provider {d.id}: fee for unknown procedure")
         if not d.cash_prices.keys() <= d.fees.keys():
             raise ValueError(f"provider {d.id}: cash price for a procedure not offered")
-        if not 0.5 <= d.contract_rate <= 2:
-            raise ValueError(f"provider {d.id}: contract rate out of range")
 
 
 _check()
