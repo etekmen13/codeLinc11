@@ -47,3 +47,28 @@ def test_quiz_options_carry_risk_direction():
     assert effects[("sugar", "often")] == "raises"
     assert effects[("brushing", "twice")] == "lowers"
     assert set(effects.values()) <= {"lowers", "raises", "neutral"}
+
+
+def test_subscriber_id_can_be_omitted_for_all_downstream_endpoints():
+    payload = request().model_dump()
+    payload.pop("subscriber_id")
+    client = TestClient(main.app)
+    response = client.post("/api/onboarding", json=payload)
+    assert response.status_code == 200
+    assert response.json()["member"]["subscriber_id"] == ""
+    for endpoint in ("/api/providers", "/api/simulation", "/api/care-plan/compare"):
+        assert client.post(endpoint, json=payload).status_code == 200
+
+
+def test_optional_id_is_not_restricted_to_a_fictional_format():
+    payload = request().model_dump()
+    payload["subscriber_id"] = "MEMBER123"
+    response = TestClient(main.app).post("/api/onboarding", json=payload)
+    assert response.status_code == 200
+    assert response.json()["member"]["subscriber_id"] == "MEMBER123"
+
+
+def test_subscriber_id_has_a_length_limit():
+    payload = request().model_dump()
+    payload["subscriber_id"] = "A" * 101
+    assert TestClient(main.app).post("/api/onboarding", json=payload).status_code == 422

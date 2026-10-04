@@ -1,4 +1,4 @@
-import type { OnboardingRequest } from "../api";
+import type { CoverageInput, MemberInput, OnboardingRequest } from "../api";
 import type { QuizAnswers, QuizQuestion } from "../types";
 
 export type Step = "symptoms" | "plan" | "procedure" | "quiz" | "review";
@@ -18,9 +18,12 @@ export const STEPS: { id: Step; label: string; title: string }[] = [
 // Everything the user has entered so far. The backend validates it all on
 // submit; the form only checks that each step has an answer.
 export interface Draft {
+  coverage?: CoverageInput;
+  member?: MemberInput;
   plan_id?: string;
   subscriber_id: string;
   procedure_code?: string;
+  treatment_description?: string;
   quiz_answers: QuizAnswers;
 }
 
@@ -31,7 +34,7 @@ export const EMPTY_DRAFT: Draft = { subscriber_id: "", quiz_answers: {} };
 // drift, the submit error says which one.
 export const DEMO_DRAFT: Draft = {
   plan_id: "keystone-ppo",
-  subscriber_id: "K417-2290-08",
+  subscriber_id: "",
   procedure_code: "D3330",
   quiz_answers: {
     sugar: "daily",
@@ -53,10 +56,12 @@ export function is_quiz_complete(
 
 // The only place a draft becomes a request. Null if a step is unfinished.
 export function build_request(d: Draft): OnboardingRequest | null {
-  if (!d.plan_id || !d.procedure_code || !d.subscriber_id.trim()) return null;
+  if (!d.plan_id || !d.procedure_code) return null;
   return {
+    coverage: d.coverage,
+    member: d.member,
     plan_id: d.plan_id,
-    subscriber_id: d.subscriber_id,
+    subscriber_id: d.subscriber_id.trim(),
     procedure_code: d.procedure_code,
     quiz_answers: d.quiz_answers,
   };

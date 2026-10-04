@@ -1,4 +1,5 @@
 import { formatMoney, remainingMaximum } from "../../lib/coverage";
+import { displayText } from "../../lib/displayText";
 import type { Procedure, SamplePlan } from "../../types";
 import type { Step } from "../draft";
 import { StepNav } from "./StepNav";
@@ -44,8 +45,12 @@ export function ReviewStep({
           <dd>
             {sample ? (
               <>
-                {sample.plan.insurer} {sample.plan.plan_name}, ID{" "}
-                <span className="ob-nowrap">{subscriber_id}</span>
+                {sample.plan.insurer} {sample.plan.plan_name}
+                {subscriber_id.trim() ? (
+                  <span className="ob-nowrap">, ID {subscriber_id}</span>
+                ) : (
+                  <span className="ob-muted"> — no subscriber ID provided</span>
+                )}
                 <span className="ob-muted">
                   {" "}
                   (
@@ -66,10 +71,10 @@ export function ReviewStep({
           <dd>
             {procedure ? (
               <>
-                {procedure.name}
+                {displayText(procedure.name)}
                 <span className="ob-muted">
                   {" "}
-                  (about {formatMoney(procedure.typical_fee)})
+                  (pricing is shown for each provider in the comparison)
                 </span>
               </>
             ) : (
@@ -92,7 +97,7 @@ export function ReviewStep({
           <p>Fix these and submit again:</p>
           <ul>
             {problems.map((p) => (
-              <li key={p}>{p}</li>
+              <li key={p}>{displayText(p)}</li>
             ))}
           </ul>
         </div>

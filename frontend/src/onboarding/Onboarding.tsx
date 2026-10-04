@@ -16,6 +16,7 @@ import {
   type Step,
 } from "./draft";
 import "./onboarding.css";
+import { BenefitsIntake } from "./steps/BenefitsIntake";
 import { PlanStep } from "./steps/PlanStep";
 import { ProcedureStep } from "./steps/ProcedureStep";
 import { QuizStep } from "./steps/QuizStep";
@@ -60,6 +61,23 @@ export function Onboarding({ on_complete }: Props) {
   const back = () => set_step(STEPS[index - 1].id);
 
   const sample = form?.plans.find((s) => s.plan.id === draft.plan_id);
+  const reviewed_sample = sample
+    ? {
+        ...sample,
+        plan: draft.coverage
+          ? {
+              ...sample.plan,
+              ...draft.coverage,
+              coinsurance: {
+                preventive: draft.coverage.preventive,
+                basic: draft.coverage.basic,
+                major: draft.coverage.major,
+              },
+            }
+          : sample.plan,
+        default_member: { ...sample.default_member, ...draft.member },
+      }
+    : undefined;
   const procedure = form?.procedures.find(
     (p) => p.cdt_code === draft.procedure_code,
   );
@@ -140,24 +158,47 @@ export function Onboarding({ on_complete }: Props) {
         )}
 
         {form && step === "plan" && (
-          <PlanStep
-            plans={form.plans}
-            plan_id={draft.plan_id}
-            subscriber_id={draft.subscriber_id}
-            on_change={update}
-            on_back={back}
-            on_next={next}
-          />
+          <>
+            <PlanStep
+              plans={form.plans.map((s) =>
+                s.plan.id === draft.plan_id && reviewed_sample
+                  ? reviewed_sample
+                  : s,
+              )}
+              plan_id={draft.plan_id}
+              subscriber_id={draft.subscriber_id}
+              on_change={(patch) =>
+                update(
+                  patch.plan_id !== undefined
+                    ? { ...patch, coverage: undefined, member: undefined }
+                    : patch,
+                )
+              }
+              on_back={back}
+              on_next={next}
+            >
+              {reviewed_sample && (
+                <BenefitsIntake
+                  key={draft.plan_id}
+                  sample={reviewed_sample}
+                  draft={draft}
+                  on_change={update}
+                />
+              )}
+            </PlanStep>
+          </>
         )}
 
         {form && step === "procedure" && sample && (
           <ProcedureStep
             procedures={form.procedures}
             procedure_code={draft.procedure_code}
-            plan={sample.plan}
-            member={sample.default_member}
-            // Different procedures get different questions, so a new
-            // procedure clears the old answers.
+            description={draft.treatment_description ?? ""}
+            on_description_change={(treatment_description) =>
+              update({ treatment_description })
+            }
+            plan={reviewed_sample!.plan}
+            member={reviewed_sample!.default_member}
             on_change={(cdt_code) =>
               update({ procedure_code: cdt_code, quiz_answers: {} })
             }
@@ -185,7 +226,7 @@ export function Onboarding({ on_complete }: Props) {
 
         {form && step === "review" && (
           <ReviewStep
-            sample={sample}
+            sample={reviewed_sample}
             procedure={procedure}
             subscriber_id={draft.subscriber_id}
             answer_count={Object.keys(draft.quiz_answers).length}
