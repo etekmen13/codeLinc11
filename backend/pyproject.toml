@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.108",
     "fastapi[standard]>=0.142.2",
+    "numpy>=2.5.3",
 ]
 
 [dependency-groups]
