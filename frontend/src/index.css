@@ -666,46 +666,58 @@ h3 {
   font-size: var(--type-figure-giant);
 }
 
-/* Outcome bar: thick segments; labels measured and placed underneath in up
-   to two rows (StateBar), each tied to its segment by a short leader. */
-.state-chart {
+/* Outcome bar: thick segments, each labeled under its own left edge, with
+   a thin rule up to the bar. Labels that would collide drop to a lower row
+   (StateBar); the lower rule runs behind the label above it. */
+.state-bar {
   --label-row: 3rem;
   --leader: 0.75rem;
-}
-.state-bar {
   display: flex;
   gap: 3px;
   height: clamp(2.5rem, 7vh, 5.5rem);
+  margin-bottom: calc(var(--label-rows, 1) * var(--label-row) + var(--leader));
 }
 .state-bar__seg {
-  min-width: 2px;
-}
-.state-labels {
   position: relative;
-  height: calc(var(--label-rows, 1) * var(--label-row) + var(--leader));
-}
-.state-leaders {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  stroke: var(--maroon-24);
-  stroke-width: 1;
+  min-width: 2px;
 }
 .state-label {
   position: absolute;
-  z-index: 1;
-  top: var(--leader);
+  z-index: 2;
+  left: 0;
+  top: calc(100% + var(--leader));
   display: grid;
-  justify-items: center;
-  padding: 0.15rem 0.25rem 0;
+  justify-items: start;
+  padding: 0 0.4rem 0.15rem;
+  border-left: 1px solid var(--maroon-24);
   background: var(--white);
   white-space: nowrap;
   line-height: 1.2;
 }
+.state-label::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: 100%;
+  height: var(--leader);
+  border-left: 1px solid var(--maroon-24);
+}
 .state-label[data-row="1"] {
-  top: calc(var(--label-row) + var(--leader));
+  z-index: 1;
+  top: calc(100% + var(--leader) + var(--label-row));
+}
+.state-label[data-row="1"]::before {
+  height: calc(var(--leader) + var(--label-row));
+}
+.state-label[data-row="2"] {
+  z-index: 0;
+  top: calc(100% + var(--leader) + 2 * var(--label-row));
+}
+.state-label[data-row="2"]::before {
+  height: calc(var(--leader) + 2 * var(--label-row));
+}
+.state-label[data-row="-1"] {
+  visibility: hidden;
 }
 .state-label__name {
   font-size: var(--type-micro);

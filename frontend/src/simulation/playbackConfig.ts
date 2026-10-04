@@ -53,8 +53,8 @@ export const playback = {
 // The summary after the playback (back on white): the outcome bar's labels.
 export const summary = {
   labelMinShare: 0.02, // smaller segments go unlabeled (the bar's aria-label lists all)
-  labelGap: 16, // px between labels in a row
-  labelRows: 2, // crowded labels drop to a second row
+  labelGap: 12, // px between labels in a row
+  labelRows: 3, // a label that would collide drops a row; with no room left, it's hidden
 } as const;
 
 // Plot geometry inside the stage, in CSS pixels.
