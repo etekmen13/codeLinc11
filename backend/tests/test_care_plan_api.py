@@ -110,3 +110,47 @@ def test_dentist_must_offer_the_procedure():
 
 def test_negative_tail_weight_rejected():
     assert post(tail_weight=-1).status_code == 422
+
+
+def compare(**kwargs):
+    b = body(**kwargs)
+    del b["provider_id"]
+    return client.post("/api/care-plan/compare", json=b)
+
+
+def test_compare_columns():
+    res = compare(plan_id="summit-ppo-plus", code="D2740")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["procedure"] == "D2740"
+    assert all(d["in_network"] for d in data["in_network"])
+    assert not any(d["in_network"] for d in data["out_of_network"])
+    for column in (data["in_network"], data["out_of_network"]):
+        costs = [d["lowest_cost"]["cost"]["mean"] for d in column]
+        assert costs == sorted(costs)
+    # In-network dentists are cheaper on their best schedules here.
+    assert (
+        data["in_network"][0]["lowest_cost"]["cost"]["mean"]
+        < data["out_of_network"][0]["lowest_cost"]["cost"]["mean"]
+    )
+
+
+def test_compare_card_matches_the_sequence_endpoint():
+    cards = compare(plan_id="summit-ppo-plus", code="D2740").json()
+    plaza = next(
+        d for d in cards["out_of_network"] if d["provider_id"] == "plaza-midwood"
+    )
+    plan = post(plan_id="summit-ppo-plus", code="D2740", provider_id="plaza-midwood")
+    plan = plan.json()
+    assert plaza["lowest_cost"] == plan["lowest_cost"]
+    assert plaza["baseline"] == plan["baseline"]
+    assert plaza["savings"] == plan["savings"]
+
+
+def test_compare_radius_and_validation():
+    near = compare(plan_id="summit-ppo-plus", code="D2740", radius_miles=5).json()
+    assert [d["provider_id"] for d in near["in_network"]] == ["uptown-smiles"]
+    assert compare(radius_miles=0).status_code == 422
+    res = compare(risk_tolerance="reckless")
+    assert res.status_code == 422
+    assert "unknown risk tolerance" in res.json()["detail"][0]

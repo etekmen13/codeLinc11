@@ -1,7 +1,14 @@
-"""Care plan endpoint: the sequencer's options for one procedure at the
-chosen dentist, in dollars.
+"""Care plan endpoints: the sequencer's options for one procedure, in
+dollars.
 
-Endpoint:
+Flow: compare dentists, each priced on their own lowest-cost schedule, then
+lay out the full plan for the dentist the member picks. Both endpoints run
+the same seeded simulations, so a dentist's card in the comparison matches
+their plan.
+
+Endpoints:
+  POST /api/care-plan/compare    OnboardingRequest plus radius and risk
+                                 tolerance -> ComparisonOut
   POST /api/care-plan/sequence   OnboardingRequest plus the chosen dentist
                                  and risk tolerance -> CarePlanOut
 
@@ -18,7 +25,7 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from catalog import PROCEDURES_BY_CODE, PROVIDERS_BY_ID
+from catalog import PROCEDURES_BY_CODE, PROVIDERS_BY_ID, Provider
 from cost import DenialReason, PaymentPath, to_dollars
 from monte_carlo import RISK_BANDS, OutcomeSummary, RiskBand
 from onboarding import (
@@ -28,15 +35,19 @@ from onboarding import (
     validate_onboarding,
 )
 from sequencer import (
+    DEFAULT_RADIUS_MILES,
     TAIL_WEIGHT,
     CarePlan,
+    Comparison,
     CostStats,
+    DentistOption,
     FsaTracker,
     Line,
     MaximumUsage,
     Option,
     Reminder,
     Savings,
+    compare_care,
     plan_care,
 )
 
@@ -153,6 +164,31 @@ class CarePlanOut(BaseModel):
     maximum: list[MaximumUsageOut]
     fsa: FsaTrackerOut | None
     reminders: list[ReminderOut]
+    risk: OutcomeSummary
+    assumptions: list[str]
+
+
+class DentistOptionOut(BaseModel):
+    provider_id: str
+    name: str
+    distance_miles: float
+    credentials: list[str]
+    in_network: bool
+    lowest_cost: OptionOut  # this dentist's lowest-cost option
+    baseline: OptionOut  # this dentist, earliest date, insured
+    savings: SavingsOut  # baseline minus lowest_cost
+
+
+class ComparisonOut(BaseModel):
+    as_of: date
+    procedure: str  # CDT code
+    tolerance: str
+    tail_weight: float
+    risk_bands: list[RiskBand]
+    # Each column sorted by the expected cost of each dentist's lowest-cost
+    # option, nearest first on ties
+    in_network: list[DentistOptionOut]
+    out_of_network: list[DentistOptionOut]
     risk: OutcomeSummary
     assumptions: list[str]
 
@@ -279,34 +315,88 @@ def care_plan_out(p: CarePlan, bands: tuple[RiskBand, ...]) -> CarePlanOut:
     )
 
 
-class CarePlanRequest(OnboardingRequest):
-    provider_id: str
+def dentist_out(d: DentistOption) -> DentistOptionOut:
+    return DentistOptionOut(
+        provider_id=d.provider_id,
+        name=d.name,
+        distance_miles=d.distance_miles,
+        credentials=list(d.credentials),
+        in_network=d.in_network,
+        lowest_cost=option_out(d.lowest_cost),
+        baseline=option_out(d.baseline),
+        savings=savings_out(d.savings),
+    )
+
+
+def comparison_out(
+    c: Comparison, procedure: str, bands: tuple[RiskBand, ...]
+) -> ComparisonOut:
+    return ComparisonOut(
+        as_of=c.as_of,
+        procedure=procedure,
+        tolerance=c.tolerance,
+        tail_weight=c.tail_weight,
+        risk_bands=list(bands),
+        in_network=[dentist_out(d) for d in c.in_network],
+        out_of_network=[dentist_out(d) for d in c.out_of_network],
+        risk=c.risk,
+        assumptions=list(c.assumptions),
+    )
+
+
+class PlanningRequest(OnboardingRequest):
     risk_tolerance: str = RISK_BANDS[0].name  # a risk band name
     tail_weight: float = Field(TAIL_WEIGHT, ge=0)
 
 
-router = APIRouter(prefix="/api/care-plan", tags=["care-plan"])
+class CompareRequest(PlanningRequest):
+    radius_miles: float = Field(DEFAULT_RADIUS_MILES, gt=0)
 
 
-@router.post("/sequence")
-def post_sequence(req: CarePlanRequest) -> CarePlanOut:
-    # Collect every problem, so one round trip shows everything to fix.
+class CarePlanRequest(PlanningRequest):
+    provider_id: str
+
+
+def validate_planning(
+    req: PlanningRequest, provider_id: str | None = None
+) -> tuple[Onboarded, Provider | None]:
+    """Raise a 422 listing every problem, so one round trip shows everything
+    to fix. provider_id, if given, must name a known dentist."""
     problems: list[str] = []
     o: Onboarded | None = None
     try:
         o = validate_onboarding(req)
     except InvalidOnboarding as e:
         problems += e.problems
-    dentist = PROVIDERS_BY_ID.get(req.provider_id)
-    if dentist is None:
-        problems.append(f"unknown provider {req.provider_id!r}")
+    dentist = None
+    if provider_id is not None:
+        dentist = PROVIDERS_BY_ID.get(provider_id)
+        if dentist is None:
+            problems.append(f"unknown provider {provider_id!r}")
     names = [b.name for b in RISK_BANDS]
     if req.risk_tolerance not in names:
         problems.append(
             f"unknown risk tolerance {req.risk_tolerance!r}; use one of {names}"
         )
-    if problems or o is None or dentist is None:
+    if problems or o is None:
         raise HTTPException(422, problems)
+    return o, dentist
+
+
+router = APIRouter(prefix="/api/care-plan", tags=["care-plan"])
+
+
+@router.post("/compare")
+def post_compare(req: CompareRequest) -> ComparisonOut:
+    o, _ = validate_planning(req)
+    comparison = compare_care(o, req.risk_tolerance, req.tail_weight, req.radius_miles)
+    return comparison_out(comparison, o.procedure.cdt_code, RISK_BANDS)
+
+
+@router.post("/sequence")
+def post_sequence(req: CarePlanRequest) -> CarePlanOut:
+    o, dentist = validate_planning(req, req.provider_id)
+    assert dentist is not None  # validate_planning checked provider_id
     try:
         plan = plan_care(o, dentist, req.risk_tolerance, req.tail_weight)
     except ValueError as e:  # e.g. the dentist does not offer the procedure
