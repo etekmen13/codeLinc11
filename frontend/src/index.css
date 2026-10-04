@@ -653,32 +653,73 @@ h3 {
   opacity: 0;
   pointer-events: none;
 }
+/* The summary fills the space beside the narrator, down to about two
+   thirds of the screen, clear of the narration line below. */
 .sim--summary {
-  padding-top: 12vh;
-  max-width: 72rem;
+  padding-top: 7vh;
+  padding-right: var(--layout-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 4vh;
+}
+.figure--giant {
+  font-size: var(--type-figure-giant);
+}
+
+/* Outcome bar: thick segments; labels measured and placed underneath in up
+   to two rows (StateBar), each tied to its segment by a short leader. */
+.state-chart {
+  --label-row: 3rem;
+  --leader: 0.75rem;
 }
 .state-bar {
   display: flex;
-  gap: 2px;
-  height: 10px;
-  margin: 3rem 0 3.5rem;
+  gap: 3px;
+  height: clamp(2.5rem, 7vh, 5.5rem);
 }
 .state-bar__seg {
-  position: relative;
   min-width: 2px;
 }
-.state-bar__label {
+.state-labels {
+  position: relative;
+  height: calc(var(--label-rows, 1) * var(--label-row) + var(--leader));
+}
+.state-leaders {
   position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  stroke: var(--maroon-24);
+  stroke-width: 1;
+}
+.state-label {
+  position: absolute;
+  z-index: 1;
+  top: var(--leader);
+  display: grid;
+  justify-items: center;
+  padding: 0.15rem 0.25rem 0;
+  background: var(--white);
   white-space: nowrap;
+  line-height: 1.2;
+}
+.state-label[data-row="1"] {
+  top: calc(var(--label-row) + var(--leader));
+}
+.state-label__name {
   font-size: var(--type-micro);
   color: var(--maroon-64);
 }
+.state-label__share {
+  font-size: var(--type-lead);
+}
+
+/* Risk band for each month. */
 .band-strip {
   display: flex;
-  gap: 1px;
-  height: 3px;
+  gap: 2px;
+  height: 0.6rem;
   margin-bottom: 0.75rem;
 }
 .band-strip span {

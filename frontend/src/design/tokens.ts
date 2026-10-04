@@ -54,6 +54,7 @@ export const type = {
   displayXL: "clamp(2.75rem, 5.2vw + 1rem, 6.75rem)",
   displayL: "clamp(2rem, 3vw + 1rem, 3.75rem)",
   figure: "clamp(2.25rem, 2.4vw + 1.25rem, 3.5rem)",
+  figureGiant: "min(9vw, 13vh)", // the simulation summary's one number
   narration: "clamp(1.5rem, 0.9vw + 1.15rem, 2.25rem)",
   plaque: "clamp(1.375rem, 0.8vw + 1rem, 2rem)", // the summary plaque
   lead: "1.25rem",

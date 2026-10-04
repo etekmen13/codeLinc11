@@ -50,6 +50,13 @@ export const playback = {
   tickEveryMonths: 3,
 } as const;
 
+// The summary after the playback (back on white): the outcome bar's labels.
+export const summary = {
+  labelMinShare: 0.02, // smaller segments go unlabeled (the bar's aria-label lists all)
+  labelGap: 16, // px between labels in a row
+  labelRows: 2, // crowded labels drop to a second row
+} as const;
+
 // Plot geometry inside the stage, in CSS pixels.
 export const plot = {
   labelWidth: 120, // state labels on the left (narrow screens: 84)
