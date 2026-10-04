@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Onboarding } from "./onboarding/Onboarding";
+import type { OnboardingRequest } from "./api";
 import { GlossaryScreen } from "./screens/GlossaryScreen";
+import { RiskScreen } from "./screens/RiskScreen";
 import type { OnboardingResult } from "./types";
 import {
   isInWaitingPeriod,
@@ -69,6 +71,7 @@ function estimate(p: Provider, plan: Plan) {
 export default function App() {
   const [step, setStep] = useState(0);
   const [onboarding, setOnboarding] = useState<OnboardingResult | null>(null);
+  const [request, setRequest] = useState<OnboardingRequest | null>(null);
   const procedure = onboarding?.procedure.name ?? "";
   const procedureDescription = onboarding?.procedure.description ?? "";
   const zip = "sample area";
@@ -128,6 +131,7 @@ export default function App() {
         <nav aria-label="Main navigation">
           {[
             "Your details",
+            "Tooth risk",
             "Find providers",
             "Care plan",
             "Understand your plan",
@@ -157,14 +161,18 @@ export default function App() {
         </header>
         <div hidden={step !== 0}>
           <Onboarding
-            on_complete={(value) => {
+            on_complete={(value, req) => {
               setOnboarding(value);
+              setRequest(req);
               setSelected(null);
               setStep(1);
             }}
           />
         </div>
-        {step === 1 && (
+        {step === 1 && request && (
+          <RiskScreen request={request} on_next={() => setStep(2)} />
+        )}
+        {step === 2 && (
           <>
             <h1>Find the right fit for your care.</h1>
             <p className="intro">
@@ -215,7 +223,7 @@ export default function App() {
                       className="primary"
                       onClick={() => {
                         setSelected(p);
-                        setStep(2);
+                        setStep(3);
                       }}
                     >
                       Choose provider →
@@ -231,13 +239,13 @@ export default function App() {
             </p>
           </>
         )}
-        {step === 2 && (
+        {step === 3 && (
           <>
             <h1>Your care, with the numbers explained.</h1>
             {!selected || !result ? (
               <div className="card">
                 <p>Choose a provider to see your cost breakdown.</p>
-                <button className="primary" onClick={() => setStep(1)}>
+                <button className="primary" onClick={() => setStep(2)}>
                   Find providers
                 </button>
               </div>
@@ -323,7 +331,7 @@ export default function App() {
             )}
           </>
         )}
-        {step === 3 && <GlossaryScreen />}
+        {step === 4 && <GlossaryScreen />}
         <footer>
           Illustrative estimates · Confirm benefits before booking
         </footer>
