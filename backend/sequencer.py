@@ -178,15 +178,19 @@ def frequency_limit_clears(
 
 @dataclass(frozen=True)
 class Line:
-    """One procedure on a visit."""
+    """One procedure on a visit. A cash line keeps the plan's allowed amount
+    for contrast, but applies no deductible and has no balance bill."""
 
     cdt_code: str
     provider_id: str
     network: Network
     path: PaymentPath
-    provider_fee: Cents
+    provider_fee: Cents  # what the dentist bills
+    allowed_amount: Cents  # what the plan recognizes
+    deductible_applied: Cents
     plan_pays: Cents
     you_pay: Cents
+    balance_billing: Cents  # billed minus allowed, out of network
     denial_reason: DenialReason | None
 
 
@@ -262,6 +266,7 @@ class Pricer:
             # Cash where the dentist has a price for this line; insured
             # otherwise.
             path: PaymentPath = "cash" if cash and r.cash is not None else "insured"
+            insured = path == "insured"
             lines.append(
                 Line(
                     cdt_code=proc.cdt_code,
@@ -269,8 +274,11 @@ class Pricer:
                     network=r.network,
                     path=path,
                     provider_fee=r.insured.provider_fee,
-                    plan_pays=r.insured.plan_pays if path == "insured" else 0,
+                    allowed_amount=r.insured.allowed_amount,
+                    deductible_applied=r.insured.deductible_applied if insured else 0,
+                    plan_pays=r.insured.plan_pays if insured else 0,
                     you_pay=r.you_pay(path),
+                    balance_billing=r.insured.balance_billing if insured else 0,
                     denial_reason=r.insured.denial_reason,
                 )
             )
