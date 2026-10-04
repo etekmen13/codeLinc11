@@ -1,5 +1,5 @@
-"""Sample plans and the procedure catalog. The canonical copy of this data:
-the frontend gets what it displays from GET /api/onboarding/form.
+"""Sample plans, the procedure catalog, and providers. The canonical copy of
+this data: the frontend gets what it displays from GET /api/onboarding/form.
 
 Insurers are fictional. Numbers are typical of US employer PPO plans but not
 taken from any real policy. Fees are rough US averages.
@@ -35,6 +35,7 @@ class Plan:
     waiting_period_months: dict[Category, int]
     frequency_limits: tuple[FrequencyLimit, ...]
     plan_year_start: str  # ISO date; resets one year later
+    in_network_fees: dict[str, float]  # procedure code -> negotiated fee
     out_of_network_allowed: dict[str, float]  # procedure code -> allowed amount
     subscriber_id_pattern: str
     subscriber_id_example: str
@@ -67,6 +68,18 @@ class SamplePlan:
     default_member: MemberStatus
 
 
+@dataclass(frozen=True)
+class Provider:
+    id: str
+    name: str
+    lat: float
+    lon: float
+    credentials: tuple[str, ...]
+    networks: frozenset[str]  # ids of the plans this dentist is in network with
+    fees: dict[str, float]  # procedure code -> billed fee; missing = not offered
+    cash_prices: dict[str, float]  # procedure code -> self-pay price; missing = none
+
+
 SAMPLE_PLANS: tuple[SamplePlan, ...] = (
     SamplePlan(
         # Generous plan with some usage already.
@@ -84,6 +97,14 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 FrequencyLimit("D2740", 1, 60),
             ),
             plan_year_start="2026-01-01",
+            in_network_fees={
+                "D1110": 85,
+                "D1206": 28,
+                "D2391": 150,
+                "D3330": 900,
+                "D2740": 950,
+                "D7140": 165,
+            },
             out_of_network_allowed={
                 "D1110": 95,
                 "D1206": 30,
@@ -114,6 +135,14 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 FrequencyLimit("D2740", 1, 84),
             ),
             plan_year_start="2026-01-01",
+            in_network_fees={
+                "D1110": 80,
+                "D1206": 24,
+                "D2391": 135,
+                "D3330": 820,
+                "D2740": 870,
+                "D7140": 150,
+            },
             out_of_network_allowed={
                 "D1110": 85,
                 "D1206": 25,
@@ -144,6 +173,14 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 FrequencyLimit("D2740", 1, 60),
             ),
             plan_year_start="2026-01-01",
+            in_network_fees={
+                "D1110": 90,
+                "D1206": 30,
+                "D2391": 155,
+                "D3330": 940,
+                "D2740": 990,
+                "D7140": 170,
+            },
             out_of_network_allowed={
                 "D1110": 100,
                 "D1206": 35,
@@ -211,8 +248,150 @@ PROCEDURES: tuple[Procedure, ...] = (
     ),
 )
 
+ALL_PLANS = frozenset({"summit-ppo-plus", "harbor-ppo-basic", "keystone-ppo"})
+
+# Charlotte, NC. Billed fees sit around each procedure's typical fee; a cash
+# price is a self-pay discount, which some offices do not offer.
+PROVIDERS: tuple[Provider, ...] = (
+    Provider(
+        id="uptown-smiles",
+        name="Uptown Smiles",
+        lat=35.2270,
+        lon=-80.8430,
+        credentials=("DDS",),
+        networks=ALL_PLANS,
+        fees={
+            "D1110": 125,
+            "D1206": 40,
+            "D2391": 185,
+            "D3330": 1150,
+            "D2740": 1250,
+            "D7140": 210,
+        },
+        cash_prices={
+            "D1110": 100,
+            "D1206": 30,
+            "D2391": 160,
+            "D3330": 1000,
+            "D2740": 1100,
+            "D7140": 180,
+        },
+    ),
+    Provider(
+        id="southpark-dental",
+        name="SouthPark Dental",
+        lat=35.1500,
+        lon=-80.8300,
+        credentials=("DMD",),
+        networks=ALL_PLANS,
+        fees={
+            "D1110": 140,
+            "D1206": 45,
+            "D2391": 215,
+            "D3330": 1300,
+            "D2740": 1400,
+            "D7140": 240,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        # Refers root canals out.
+        id="noda-family",
+        name="NoDa Family Dentistry",
+        lat=35.2470,
+        lon=-80.8020,
+        credentials=("DDS",),
+        networks=frozenset({"summit-ppo-plus", "keystone-ppo"}),
+        fees={
+            "D1110": 110,
+            "D1206": 35,
+            "D2391": 165,
+            "D2740": 1150,
+            "D7140": 200,
+        },
+        cash_prices={},
+    ),
+    Provider(
+        id="plaza-midwood",
+        name="Plaza Midwood Dental",
+        lat=35.2200,
+        lon=-80.8100,
+        credentials=("DDS",),
+        networks=frozenset(),
+        fees={
+            "D1110": 145,
+            "D1206": 50,
+            "D2391": 225,
+            "D3330": 1350,
+            "D2740": 1450,
+            "D7140": 250,
+        },
+        cash_prices={
+            "D1110": 115,
+            "D1206": 40,
+            "D2391": 185,
+            "D3330": 1100,
+            "D2740": 1200,
+            "D7140": 205,
+        },
+    ),
+    Provider(
+        # Specialist: root canals only.
+        id="ballantyne-endo",
+        name="Ballantyne Endodontics",
+        lat=35.0500,
+        lon=-80.8500,
+        credentials=("DDS", "Endodontist"),
+        networks=frozenset(),
+        fees={"D3330": 1450},
+        cash_prices={"D3330": 1200},
+    ),
+    Provider(
+        id="dilworth-dental",
+        name="Dilworth Dental Care",
+        lat=35.2000,
+        lon=-80.8450,
+        credentials=("DMD",),
+        networks=frozenset(),
+        fees={
+            "D1110": 130,
+            "D1206": 45,
+            "D2391": 195,
+            "D3330": 1200,
+            "D2740": 1250,
+            "D7140": 220,
+        },
+        cash_prices={
+            "D1110": 95,
+            "D1206": 30,
+            "D2391": 150,
+            "D3330": 950,
+            "D2740": 1000,
+            "D7140": 170,
+        },
+    ),
+    Provider(
+        id="university-city",
+        name="University City Dental",
+        lat=35.3070,
+        lon=-80.7350,
+        credentials=("DMD",),
+        networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic"}),
+        fees={
+            "D1110": 120,
+            "D1206": 40,
+            "D2391": 175,
+            "D3330": 1100,
+            "D2740": 1200,
+            "D7140": 205,
+        },
+        cash_prices={},
+    ),
+)
+
 PLANS_BY_ID: dict[str, SamplePlan] = {s.plan.id: s for s in SAMPLE_PLANS}
 PROCEDURES_BY_CODE: dict[str, Procedure] = {p.cdt_code: p for p in PROCEDURES}
+PROVIDERS_BY_ID: dict[str, Provider] = {p.id: p for p in PROVIDERS}
 
 
 def normalize_subscriber_id(raw: str) -> str:
@@ -234,6 +413,22 @@ def _check() -> None:
     for s in SAMPLE_PLANS:
         if not is_valid_subscriber_id(s.plan, s.plan.subscriber_id_example):
             raise ValueError(f"plan {s.plan.id}: example ID fails its pattern")
+        for schedule in (s.plan.in_network_fees, s.plan.out_of_network_allowed):
+            if schedule.keys() != PROCEDURES_BY_CODE.keys():
+                raise ValueError(
+                    f"plan {s.plan.id}: fee schedule must price every procedure"
+                )
+    if ALL_PLANS != PLANS_BY_ID.keys():
+        raise ValueError("ALL_PLANS is out of date")
+    if len(PROVIDERS_BY_ID) != len(PROVIDERS):
+        raise ValueError("duplicate provider id")
+    for d in PROVIDERS:
+        if not d.networks <= PLANS_BY_ID.keys():
+            raise ValueError(f"provider {d.id}: unknown plan in networks")
+        if not d.fees.keys() <= PROCEDURES_BY_CODE.keys():
+            raise ValueError(f"provider {d.id}: fee for unknown procedure")
+        if not d.cash_prices.keys() <= d.fees.keys():
+            raise ValueError(f"provider {d.id}: cash price for a procedure not offered")
 
 
 _check()

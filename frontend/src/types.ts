@@ -22,6 +22,7 @@ export interface Plan {
   waiting_period_months: Record<InsuranceType, number>;
   frequency_limits: FrequencyLimit[];
   plan_year_start: string; // ISO date the reset date is one year later
+  in_network_fees: Record<string, number>; // CDT code, negotiated fee
   out_of_network_allowed: Record<string, number>; // CDT code, allowed amount
   subscriber_id_pattern: string;
   subscriber_id_example: string;
