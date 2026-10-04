@@ -374,6 +374,18 @@ PROCEDURES: tuple[Procedure, ...] = (
     ),
 )
 
+# What it takes to treat a tooth found in each state, in billing order (the
+# first line absorbs the deductible). Prices a tooth that got worse than the
+# procedure the member picked. v0 bills a whole bundle on one date; v1 may
+# split multi-visit work (root canal then crown) into dated steps.
+TREATMENT_FOR_STATE: dict[str, tuple[str, ...]] = {
+    "healthy": (),
+    "early_lesion": ("D1206",),
+    "cavity": ("D2391",),
+    "root_canal": ("D3330", "D2740"),
+    "extraction": ("D7140", "D6010", "D6065"),
+}
+
 ALL_PLANS = frozenset({"summit-ppo-plus", "harbor-ppo-basic", "keystone-ppo"})
 
 # Charlotte, NC. Billed fees sit around each procedure's typical fee; a cash
@@ -581,6 +593,14 @@ def _check() -> None:
     for p in PROCEDURES:
         if p.treats_state not in STATE_INDEX:
             raise ValueError(f"procedure {p.cdt_code} treats unknown state")
+    if TREATMENT_FOR_STATE.keys() != STATE_INDEX.keys():
+        raise ValueError("TREATMENT_FOR_STATE needs exactly one entry per state")
+    for state, codes in TREATMENT_FOR_STATE.items():
+        for code in codes:
+            if code not in PROCEDURES_BY_CODE:
+                raise ValueError(f"treatment for {state}: unknown procedure {code}")
+            if PROCEDURES_BY_CODE[code].treats_state != state:
+                raise ValueError(f"treatment for {state}: {code} treats another state")
     for s in SAMPLE_PLANS:
         if not is_valid_subscriber_id(s.plan, s.plan.subscriber_id_example):
             raise ValueError(f"plan {s.plan.id}: example ID fails its pattern")
