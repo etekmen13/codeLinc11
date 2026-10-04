@@ -7,7 +7,7 @@ from typing import Literal
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/care-plan", tags=["care-plan"])
@@ -232,14 +232,27 @@ def bedrock_client():
     )
 
 
+def term_explanation(request: TermRequest, explanation: str) -> ExplanationResponse:
+    summary = context_summary(request.term, request.context)
+    return ExplanationResponse(
+        explanation=(f"{summary}\n\n{explanation}" if summary else explanation)
+    )
+
+
+def reference_explanation(request: TermRequest) -> ExplanationResponse:
+    """The reference definition as written, for when Bedrock is not
+    configured or fails, so the app runs without AWS credentials."""
+    return term_explanation(
+        request,
+        f"{DEFINITIONS[request.term]} Specific rules depend on the plan.",
+    )
+
+
 @router.post("/terms/explain", response_model=ExplanationResponse)
 def explain_insurance_term(request: TermRequest):
     model_id = os.environ.get("BEDROCK_MODEL_ID")
     if not model_id:
-        raise HTTPException(
-            status_code=503,
-            detail="BEDROCK_MODEL_ID is not configured.",
-        )
+        return reference_explanation(request)
 
     try:
         response = bedrock_client().converse(
@@ -286,20 +299,10 @@ def explain_insurance_term(request: TermRequest):
         ).strip()
 
         if not explanation:
-            raise HTTPException(
-                status_code=502,
-                detail="Bedrock returned no explanation.",
-            )
+            logger.warning("Bedrock returned no explanation; using the definition")
+            return reference_explanation(request)
+        return term_explanation(request, explanation)
 
-        summary = context_summary(request.term, request.context)
-
-        return ExplanationResponse(
-            explanation=(f"{summary}\n\n{explanation}" if summary else explanation)
-        )
-
-    except (ClientError, BotoCoreError) as exc:
-        logger.exception("Bedrock term explanation failed")
-        raise HTTPException(
-            status_code=502,
-            detail=("The insurance-term explanation is temporarily unavailable."),
-        ) from exc
+    except (ClientError, BotoCoreError):
+        logger.exception("Bedrock term explanation failed; using the definition")
+        return reference_explanation(request)
