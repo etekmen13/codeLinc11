@@ -5,6 +5,7 @@
 import type {
   CareComparison,
   CdtMapping,
+  ClarificationTurn,
   NearbyProvider,
   CarePlan,
   OnboardingResult,
@@ -187,16 +188,40 @@ export function fetch_nearby(radius_miles = 25): Promise<NearbyProvider[]> {
 
 // Treatment description to catalog codes. Falls back to keyword matching on
 // the server when AI matching is not set up.
-export function map_treatment(
+export async function map_treatment(
   treatment_description: string,
   signal?: AbortSignal,
+  clarifications: ClarificationTurn[] = [],
 ): Promise<CdtMapping> {
-  return request<CdtMapping>("/api/cdt/map", {
+  const result = await request<CdtMapping>("/api/cdt/map", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ treatment_description }),
+    body: JSON.stringify({ treatment_description, clarifications }),
     signal,
   });
+  if (
+    !result ||
+    !["candidate", "needs_clarification", "no_match"].includes(result.status) ||
+    !Array.isArray(result.candidate_codes) ||
+    result.candidate_codes.length > 5 ||
+    !result.candidate_codes.every(
+      (c) =>
+        c &&
+        typeof c.code === "string" &&
+        /^D\d{4}$/.test(c.code) &&
+        typeof c.reason === "string",
+    ) ||
+    (result.status === "candidate" && !result.candidate_codes.length) ||
+    (result.status !== "candidate" && result.candidate_codes.length > 0) ||
+    (result.status === "needs_clarification" &&
+      (typeof result.clarification_question !== "string" ||
+        !result.clarification_question.trim()))
+  ) {
+    throw new Error(
+      "The treatment lookup returned an incomplete response. Please retry or choose from the list.",
+    );
+  }
+  return result;
 }
 
 // Plain-language explanation endpoints. Both answer {"explanation": "..."}.

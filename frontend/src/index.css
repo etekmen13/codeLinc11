@@ -1213,3 +1213,30 @@ h3 {
     width: auto;
   }
 }
+
+/* Keep the own-words input readable in the narrative flow. */
+textarea.inline-input {
+  resize: vertical;
+  min-height: 6rem;
+  line-height: 1.5;
+}
+.treatment-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.treatment-examples button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+.treatment-examples button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
