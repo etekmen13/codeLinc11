@@ -247,6 +247,32 @@ export interface Reminder {
   message: string;
 }
 
+// One dentist, priced on their own lowest-cost option within the tolerance.
+export interface DentistOption {
+  provider_id: string;
+  name: string;
+  distance_miles: number;
+  credentials: string[];
+  in_network: boolean;
+  lowest_cost: CarePlanOption;
+  baseline: CarePlanOption; // this dentist, earliest date, insured
+  savings: Savings; // baseline minus lowest_cost
+}
+
+// What POST /api/care-plan/compare returns. Each column is sorted by the
+// expected cost of each dentist's lowest-cost option, nearest first on ties.
+export interface CareComparison {
+  as_of: string; // ISO date
+  procedure: string; // CDT code
+  tolerance: string;
+  tail_weight: number;
+  risk_bands: RiskBand[];
+  in_network: DentistOption[];
+  out_of_network: DentistOption[];
+  risk: RiskSummary;
+  assumptions: string[];
+}
+
 export interface CarePlan {
   as_of: string; // ISO date
   provider_id: string;
