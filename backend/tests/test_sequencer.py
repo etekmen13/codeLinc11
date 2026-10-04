@@ -16,6 +16,7 @@ from sequencer import (
     Pricer,
     candidate_dates,
     choose_plan,
+    compare_dentists,
     evaluate_options,
     frequency_limit_clears,
     months_between,
@@ -383,3 +384,70 @@ def test_without_an_fsa_the_fresh_maximum_wins():
         52000,
     )
     assert plan.lever_savings["timing"] == pytest.approx(2000)
+
+
+# Comparing dentists. Summit crown, no progression; each dentist's lowest-cost
+# option is January, in the grace period (see the hint tests above for the
+# in-network 140 and Plaza Midwood's 507.50).
+# Out of network, A = 1000: d = 50, plan 50% of 950 = 475, so 525 of the
+# allowed amount plus the balance bill, less the $300 FSA, is elected at 30%.
+#   Dilworth (billed 1350): 525 + 350 = 875; 0.7 * 575 = 402.50.
+#   Ballantyne (billed 1450): 525 + 450 = 975; 0.7 * 675 = 472.50.
+
+
+def test_compare_ranks_each_dentist_on_their_best_schedule():
+    o = onboarded("summit-ppo-plus", "D2740")
+    sim = fake_sim(o)
+    c = compare_dentists(o, sim, sim)
+    assert [x.provider_id for x in c.in_network] == [
+        "uptown-smiles",  # nearest of three at 140
+        "southpark-dental",
+        "university-city",
+    ]
+    assert {x.lowest_cost.cost.mean for x in c.in_network} == {14000}
+    assert [(x.provider_id, x.lowest_cost.cost.mean) for x in c.out_of_network] == [
+        ("dilworth-dental", pytest.approx(40250)),
+        ("ballantyne-endo", pytest.approx(47250)),
+        ("plaza-midwood", pytest.approx(50750)),
+    ]
+    assert all(x.lowest_cost.date == date(2027, 1, 4) for x in c.out_of_network)
+    # NoDa does not do crowns.
+    everyone = {x.provider_id for x in (*c.in_network, *c.out_of_network)}
+    assert "noda-family" not in everyone
+
+
+def test_compare_card_matches_the_dentists_plan():
+    # Plaza Midwood today: you owe 1000, the FSA pays 300, 700 left.
+    o = onboarded("summit-ppo-plus", "D2740")
+    sim = fake_sim(o)
+    plaza = PROVIDERS_BY_ID["plaza-midwood"]
+    card = next(
+        x
+        for x in compare_dentists(o, sim, sim).out_of_network
+        if x.provider_id == plaza.id
+    )
+    plan = choose_plan(o, plaza, sim, sim)
+    assert card.lowest_cost == plan.lowest_cost
+    assert card.baseline == plan.baseline
+    assert (card.baseline.cost.mean, card.savings.mean) == (70000, pytest.approx(19250))
+
+
+def test_compare_radius():
+    o = onboarded("summit-ppo-plus", "D2740")
+    sim = fake_sim(o)
+    c = compare_dentists(o, sim, sim, radius_miles=5)
+    assert [x.provider_id for x in c.in_network] == ["uptown-smiles"]
+    assert {x.provider_id for x in c.out_of_network} == {
+        "dilworth-dental",
+        "plaza-midwood",
+    }
+
+
+def test_compare_respects_the_tolerance():
+    # Harbor root canal: at medium risk, every in-network dentist's lowest-cost
+    # option moves to July, when the waiting period ends.
+    o, sim = harbor()
+    low = compare_dentists(o, sim, sim, "low", cvar_weight=0.0)
+    medium = compare_dentists(o, sim, sim, "medium", cvar_weight=0.0)
+    assert {x.lowest_cost.band for x in low.in_network} == {"low"}
+    assert {x.lowest_cost.date for x in medium.in_network} == {date(2027, 7, 1)}

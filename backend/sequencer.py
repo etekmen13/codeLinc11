@@ -72,6 +72,9 @@ from provider import EXAMPLE_USER_LOCATION, distance_miles
 BEFORE_RESET_DAYS = 14
 AFTER_RESET_DAYS = 3
 
+# Dentists farther than this from the member are left out of comparisons.
+DEFAULT_RADIUS_MILES = 25.0
+
 # Smallest expected saving worth a "switch dentists" hint, in cents.
 HINT_MIN_SAVINGS = 100
 
@@ -771,6 +774,14 @@ def cleaning_reminder(
     )
 
 
+def allowed_bands(tolerance: str, bands: tuple[RiskBand, ...]) -> set[str]:
+    """The tolerance's band and every band below it."""
+    names = [b.name for b in bands]
+    if tolerance not in names:
+        raise ValueError(f"unknown risk tolerance {tolerance!r}; use one of {names}")
+    return set(names[: names.index(tolerance) + 1])
+
+
 @dataclass(frozen=True)
 class CarePlan:
     as_of: date
@@ -811,10 +822,7 @@ def choose_plan(
 ) -> CarePlan:
     """Find the lowest-cost option within the tolerance on select_sim, and
     report every number from report_sim."""
-    names = [b.name for b in bands]
-    if tolerance not in names:
-        raise ValueError(f"unknown risk tolerance {tolerance!r}; use one of {names}")
-    allowed = set(names[: names.index(tolerance) + 1])
+    allowed = allowed_bands(tolerance, bands)
 
     pricer = Pricer(o, providers)
     full = evaluate(o, provider, select_sim, report_sim, pricer, bands)
@@ -861,12 +869,127 @@ def plan_care(
     seed: int = 0,
     bands: tuple[RiskBand, ...] = RISK_BANDS,
 ) -> CarePlan:
-    """Main entry: simulate the tooth twice (selection and reporting, on
-    independent seeds) and lay out the options."""
-    select_sim = simulate(o, n_samples=n_samples, seed=seed, bands=bands)
-    report_sim = simulate(o, n_samples=n_samples, seed=seed + 1, bands=bands)
+    """Main entry for one dentist: lay out the options for the dentist the
+    member chose."""
+    select_sim, report_sim = simulations(o, n_samples, seed, bands)
     return choose_plan(
         o, provider, select_sim, report_sim, tolerance, cvar_weight, bands
+    )
+
+
+def simulations(
+    o: Onboarded,
+    n_samples: int = N_SAMPLES,
+    seed: int = 0,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+) -> tuple[SimulationResult, SimulationResult]:
+    """The tooth simulated twice on independent seeds: one set of futures to
+    pick options on, one to report them from (see Evaluated)."""
+    return (
+        simulate(o, n_samples=n_samples, seed=seed, bands=bands),
+        simulate(o, n_samples=n_samples, seed=seed + 1, bands=bands),
+    )
+
+
+# Comparing dentists
+
+
+@dataclass(frozen=True)
+class DentistOption:
+    """One dentist, priced on their own lowest-cost option within the
+    tolerance rather than on a single date."""
+
+    provider_id: str
+    name: str
+    distance_miles: float
+    credentials: tuple[str, ...]
+    in_network: bool
+    lowest_cost: Option
+    baseline: Option  # this dentist, earliest date, insured
+    savings: Savings  # baseline minus lowest_cost
+
+
+@dataclass(frozen=True)
+class Comparison:
+    as_of: date
+    tolerance: str
+    tail_weight: float
+    # Dentists within the radius who do the procedure. Each column is sorted
+    # by the expected cost of each dentist's lowest-cost option, nearest
+    # first on ties.
+    in_network: tuple[DentistOption, ...]
+    out_of_network: tuple[DentistOption, ...]
+    risk: OutcomeSummary
+    assumptions: tuple[str, ...]
+
+
+def compare_dentists(
+    o: Onboarded,
+    select_sim: SimulationResult,
+    report_sim: SimulationResult,
+    tolerance: str = "low",
+    cvar_weight: float = TAIL_WEIGHT,
+    radius_miles: float = DEFAULT_RADIUS_MILES,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+    providers: tuple[Provider, ...] = PROVIDERS,
+    user_location: tuple[float, float] = EXAMPLE_USER_LOCATION,
+) -> Comparison:
+    """Every nearby dentist who does the procedure, each on their own best
+    schedule. A dentist's cost depends on when the work happens, how the
+    tooth progresses, and the plan and FSA at that date, so dentists are
+    compared after sequencing, not on today's price. Every dentist is scored
+    on the same futures."""
+    allowed = allowed_bands(tolerance, bands)
+    pricer = Pricer(o, providers)
+    cards: list[DentistOption] = []
+    for d in providers:
+        if o.procedure.cdt_code not in d.fees:
+            continue
+        miles = distance_miles(user_location, (d.lat, d.lon))
+        if miles > radius_miles:
+            continue
+        ev = evaluate(o, d, select_sim, report_sim, pricer, bands)
+        within = [s for s in ev.select if s.option.band in allowed]
+        best = ev.reported(lowest_cost(within, cvar_weight))
+        baseline = ev.baseline(o.as_of)
+        cards.append(
+            DentistOption(
+                provider_id=d.id,
+                name=d.name,
+                distance_miles=round(miles, 1),
+                credentials=d.credentials,
+                in_network=o.plan.id in d.networks,
+                lowest_cost=best.option,
+                baseline=baseline.option,
+                savings=savings(baseline, best),
+            )
+        )
+    cards.sort(key=lambda c: (round(c.lowest_cost.cost.mean), c.distance_miles))
+    return Comparison(
+        as_of=o.as_of,
+        tolerance=tolerance,
+        tail_weight=cvar_weight,
+        in_network=tuple(c for c in cards if c.in_network),
+        out_of_network=tuple(c for c in cards if not c.in_network),
+        risk=report_sim.summary,
+        assumptions=assumptions(o),
+    )
+
+
+def compare_care(
+    o: Onboarded,
+    tolerance: str = "low",
+    cvar_weight: float = TAIL_WEIGHT,
+    radius_miles: float = DEFAULT_RADIUS_MILES,
+    n_samples: int = N_SAMPLES,
+    seed: int = 0,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+) -> Comparison:
+    """Main entry for comparing dentists. Uses the same simulations as
+    plan_care, so each card matches that dentist's plan."""
+    select_sim, report_sim = simulations(o, n_samples, seed, bands)
+    return compare_dentists(
+        o, select_sim, report_sim, tolerance, cvar_weight, radius_miles, bands
     )
 
 
