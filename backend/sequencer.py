@@ -48,7 +48,9 @@ from cost import (
     PaymentPath,
     add_months,
     adjudicate,
+    cents,
     check_eligibility,
+    fmt,
     initial_state,
     plan_year_containing,
 )
@@ -138,18 +140,22 @@ def candidate_dates(
     return tuple(CandidateDate(d, tuple(found[d])) for d in sorted(found))
 
 
-def frequency_limit_clears(o: Onboarded, provider: Provider) -> date | None:
-    """The first date after as_of when the picked procedure's frequency
-    limit allows it again, or None if it is allowed now (or never limited).
-    Asks the cost engine, so the window rule lives in one place."""
-    code = o.procedure.cdt_code
+def frequency_limit_clears(
+    o: Onboarded, provider: Provider, procedure: Procedure | None = None
+) -> date | None:
+    """The first date after as_of when a procedure's frequency limit allows
+    it again, or None if it is allowed now (or never limited). Defaults to
+    the picked procedure. Asks the cost engine, so the window rule lives in
+    one place."""
+    procedure = procedure or o.procedure
+    code = procedure.cdt_code
     limit = next((f for f in o.plan.frequency_limits if f.cdt_code == code), None)
     if limit is None:
         return None
     state = initial_state(o.plan, o.member)
 
     def limited(d: date) -> bool:
-        denial, _ = check_eligibility(Claim(o.procedure, provider, d), state, o.plan)
+        denial, _ = check_eligibility(Claim(procedure, provider, d), state, o.plan)
         return denial == "frequency_limit"
 
     if not limited(o.as_of):
@@ -612,6 +618,154 @@ def provider_hint(
     return top if top.savings.mean >= HINT_MIN_SAVINGS else None
 
 
+# Benefit tracking
+
+
+@dataclass(frozen=True)
+class MaximumUsage:
+    """One plan year's annual maximum with an option's visit on it."""
+
+    plan_year_start: date
+    resets_on: date  # first day of the next plan year
+    annual_maximum: Cents
+    used: Cents  # by claims before the visit
+    scheduled: float  # expected plan payment for the visit
+    remaining: float
+
+
+def expected_plan_pays(option: Option) -> float:
+    return sum(x.probability * x.visit.plan_pays for x in option.outcomes)
+
+
+def maximum_usage(
+    o: Onboarded, option: Option, pricer: Pricer
+) -> tuple[MaximumUsage, ...]:
+    """The current plan year, and the option's plan year if it is later."""
+    current = plan_year_containing(o.as_of, o.plan)
+    visit_year = plan_year_containing(option.date, o.plan)
+    annual = cents(o.plan.annual_maximum)
+    rows = []
+    for year in sorted({current, visit_year}):
+        used = annual - pricer.benefits.max_remaining if year == current else 0
+        scheduled = expected_plan_pays(option) if year == visit_year else 0.0
+        rows.append(
+            MaximumUsage(
+                plan_year_start=year,
+                resets_on=add_months(year, 12),
+                annual_maximum=annual,
+                used=used,
+                scheduled=scheduled,
+                remaining=annual - used - scheduled,
+            )
+        )
+    return tuple(rows)
+
+
+@dataclass(frozen=True)
+class FsaTracker:
+    """This year's FSA balance with an option's visit, in expectation."""
+
+    balance: Cents
+    spend_deadline: date
+    carryover_limit: Cents
+    spent: float  # from this year's balance on the visit
+    unused: float
+    forfeited: float  # lost at the deadline; the rest of unused carries over
+    # Election for the visit's FSA year with the lowest expected cost, and
+    # the quantile of the visit's cost it sits at (the tax rate); 0 if the
+    # visit is in this FSA year
+    election: float
+    election_quantile: float
+
+
+def track_fsa(o: Onboarded, option: Option) -> FsaTracker | None:
+    if o.member.fsa is None:
+        return None
+    r = fsa.rules(o.member.fsa)
+    return FsaTracker(
+        balance=r.balance,
+        spend_deadline=r.spend_deadline,
+        carryover_limit=r.carryover_limit,
+        spent=option.fsa.from_balance,
+        unused=option.fsa.balance_unused,
+        forfeited=option.fsa.forfeited,
+        election=option.fsa.election,
+        election_quantile=r.tax_rate,
+    )
+
+
+@dataclass(frozen=True)
+class Reminder:
+    """A benefit that expires unused, with an option's visit in place."""
+
+    kind: str  # "annual_maximum_expires", "fsa_forfeited", "cleaning_covered"
+    deadline: date
+    amount: float  # what is at stake, in cents
+    message: str
+
+
+def reminders(
+    o: Onboarded,
+    chosen: Provider,
+    maximum: tuple[MaximumUsage, ...],
+    tracker: FsaTracker | None,
+    pricer: Pricer,
+) -> tuple[Reminder, ...]:
+    """Benefits still unused at the end of the current plan or FSA year."""
+    found: list[Reminder] = []
+    year = maximum[0]  # the current plan year
+    last_day = year.resets_on - timedelta(days=1)
+    if year.remaining >= 1:
+        found.append(
+            Reminder(
+                "annual_maximum_expires",
+                last_day,
+                year.remaining,
+                f"{fmt(round(year.remaining))} of this plan year's annual maximum "
+                f"is unused and expires after {last_day}.",
+            )
+        )
+    if tracker is not None and tracker.forfeited >= 1:
+        found.append(
+            Reminder(
+                "fsa_forfeited",
+                tracker.spend_deadline,
+                tracker.forfeited,
+                f"{fmt(round(tracker.forfeited))} of FSA money is forfeited if "
+                f"unspent by {tracker.spend_deadline}.",
+            )
+        )
+    cleaning = cleaning_reminder(o, chosen, year, pricer)
+    if cleaning is not None:
+        found.append(cleaning)
+    return tuple(found)
+
+
+def cleaning_reminder(
+    o: Onboarded, chosen: Provider, year: MaximumUsage, pricer: Pricer
+) -> Reminder | None:
+    """A routine cleaning the plan would still pay for before the reset."""
+    cleaning = PROCEDURES_BY_CODE["D1110"]
+    if o.procedure.cdt_code == cleaning.cdt_code:
+        return None  # already the visit being planned
+    dentist = provider_for(cleaning.cdt_code, chosen, o.plan, pricer.providers)
+    d = frequency_limit_clears(o, dentist, cleaning) or o.as_of
+    if d >= year.resets_on:
+        return None
+    r = adjudicate(Claim(cleaning, dentist, d), pricer.benefits, o.plan)
+    covered = min(float(r.insured.plan_pays), year.remaining)
+    if covered < 1:
+        return None
+    last_day = year.resets_on - timedelta(days=1)
+    return Reminder(
+        "cleaning_covered",
+        last_day,
+        covered,
+        f"The plan covers a cleaning from {d}, worth up to {fmt(round(covered))}; "
+        f"this plan year's benefits end after {last_day}.",
+    )
+
+
 @dataclass(frozen=True)
 class CarePlan:
     as_of: date
@@ -628,6 +782,11 @@ class CarePlan:
     beyond_tolerance: Option | None
     beyond_tolerance_savings: Savings | None  # versus lowest_cost
     provider_hint: ProviderHint | None
+    # For lowest_cost: the annual maximum by plan year, the FSA, and what
+    # expires unused
+    maximum: tuple[MaximumUsage, ...]
+    fsa: FsaTracker | None  # None if the employer offers no FSA
+    reminders: tuple[Reminder, ...]
     risk: OutcomeSummary
     assumptions: tuple[str, ...]
 
@@ -662,6 +821,8 @@ def choose_plan(
     hint = provider_hint(
         o, provider, chosen, select_sim, report_sim, pricer, allowed, cvar_weight, bands
     )
+    maximum = maximum_usage(o, chosen.option, pricer)
+    fsa_tracker = track_fsa(o, chosen.option)
     return CarePlan(
         as_of=o.as_of,
         provider_id=provider.id,
@@ -674,6 +835,9 @@ def choose_plan(
         beyond_tolerance=beyond.option if beyond else None,
         beyond_tolerance_savings=savings(chosen, beyond) if beyond else None,
         provider_hint=hint,
+        maximum=maximum,
+        fsa=fsa_tracker,
+        reminders=reminders(o, provider, maximum, fsa_tracker, pricer),
         risk=report_sim.summary,
         assumptions=assumptions(o),
     )

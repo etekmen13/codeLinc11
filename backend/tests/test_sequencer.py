@@ -1,6 +1,7 @@
 """Expected numbers are worked by hand from the catalog. Amounts are in
 cents. Most tests use a hand-built simulation so outcomes are exact."""
 
+from dataclasses import replace
 from datetime import date
 
 import numpy as np
@@ -307,3 +308,73 @@ def test_no_hint_when_no_one_is_cheaper():
     o = onboarded("summit-ppo-plus", "D2740")
     sim = fake_sim(o)
     assert choose_plan(o, UPTOWN, sim, sim).provider_hint is None
+
+
+def test_tracking_when_the_maximum_and_fsa_are_used_up():
+    # Keystone root canal now: the plan pays the last 400 of the maximum and
+    # the FSA pays 400, so nothing is left to expire. A cleaning would be
+    # allowed, but the plan has no maximum left to pay for it.
+    o = onboarded("keystone-ppo", "D3330")
+    sim = fake_sim(o, "extraction")
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    (year,) = plan.maximum
+    assert (year.plan_year_start, year.resets_on) == (
+        date(2026, 1, 1),
+        date(2027, 1, 1),
+    )
+    assert (year.used, year.scheduled, year.remaining) == (110000, 40000, 0)
+    assert plan.fsa is not None
+    assert (plan.fsa.spent, plan.fsa.forfeited, plan.fsa.election) == (40000, 0, 0)
+    assert plan.reminders == ()
+
+
+def test_tracking_a_visit_in_the_next_plan_year():
+    # Harbor in January: the 2026 maximum goes unused; the 2027 visit is still
+    # denied, so it uses none of 2027's. The carryover pays $250, and $570 is
+    # elected at the 22% quantile. A cleaning (negotiated $80) is covered now.
+    o, sim = harbor()
+    plan = choose_plan(o, UPTOWN, sim, sim, "low")
+    assert [(y.plan_year_start, y.scheduled, y.remaining) for y in plan.maximum] == [
+        (date(2026, 1, 1), 0, 100000),
+        (date(2027, 1, 1), 0, 100000),
+    ]
+    assert plan.fsa is not None
+    assert (plan.fsa.spent, plan.fsa.forfeited) == (25000, 0)
+    assert (plan.fsa.election, plan.fsa.election_quantile) == (57000, 0.22)
+    assert [(r.kind, r.deadline, r.amount) for r in plan.reminders] == [
+        ("annual_maximum_expires", date(2026, 12, 31), 100000),
+        ("cleaning_covered", date(2026, 12, 31), 8000),
+    ]
+
+
+def test_reminders_for_forfeited_fsa_and_unused_maximum():
+    # Summit filling now at Dilworth (out of network): A = 160, plan 80% =
+    # 128, you owe 32 + 50 balance bill = 82. Of the $300 FSA, 218 is unused
+    # and lost after the grace period. The next cleaning is covered from
+    # 2026-10-15: Dilworth bills 125, the plan allows and pays 95.
+    o = onboarded("summit-ppo-plus", "D2391")
+    sim = fake_sim(o)
+    plan = choose_plan(o, PROVIDERS_BY_ID["dilworth-dental"], sim, sim)
+    assert (plan.lowest_cost.date, plan.lowest_cost.path) == (o.as_of, "insured")
+    (year,) = plan.maximum
+    assert (year.used, year.scheduled, year.remaining) == (35000, 12800, 152200)
+    assert [(r.kind, r.deadline, r.amount) for r in plan.reminders] == [
+        ("annual_maximum_expires", date(2026, 12, 31), 152200),
+        ("fsa_forfeited", date(2027, 3, 15), 21800),
+        ("cleaning_covered", date(2026, 12, 31), 9500),
+    ]
+    assert "2026-10-15" in plan.reminders[2].message
+
+
+def test_without_an_fsa_the_fresh_maximum_wins():
+    # Nothing pulls the visit into this year: January's 520 beats now's 540.
+    o = onboarded("keystone-ppo", "D3330")
+    o = replace(o, member=replace(o.member, fsa=None))
+    sim = fake_sim(o)
+    plan = choose_plan(o, UPTOWN, sim, sim)
+    assert plan.fsa is None
+    assert (plan.lowest_cost.date, plan.lowest_cost.cost.mean) == (
+        date(2027, 1, 4),
+        52000,
+    )
+    assert plan.lever_savings["timing"] == pytest.approx(2000)
