@@ -1,14 +1,18 @@
-// Simulation, Phase 1: v0's Monte Carlo drawing and its numbers, restyled.
-// Phase 4 replaces SimIntro with the full-bleed playback.
+// Simulation. The futures play on a fixed maroon stage (SimStage) once the
+// narrator has said his intro line; the sim_intro stop itself is an empty
+// screen to scroll to. SimSummary shows the numbers back on white.
 
+import { useEffect } from "react";
 import { stateColors } from "../design/tokens";
 import { bandColor } from "../lib/risk";
 import { formatISODate, formatPercent } from "../lib/coverage";
 import { ui } from "../narrative/script";
 import { fill } from "../narrative/template";
+import { prefersReducedMotion } from "../motion/config";
 import { fresh, requestKey } from "../state/selectors";
-import { useStore } from "../state/store";
-import MonteCarloPaper from "../simulation/MonteCarloPaper";
+import { useStore, type AppState } from "../state/store";
+import { FuturesPlayback } from "../simulation/FuturesPlayback";
+import { stage } from "../simulation/playbackConfig";
 import type { ToothSimulation } from "../types";
 
 const KEY_MONTHS = [0, 3, 6, 12, 18, 24];
@@ -17,21 +21,63 @@ function useSimulation(): ToothSimulation | null {
   return useStore((s) => fresh(s.simulation, requestKey(s)));
 }
 
-export function SimIntro({ reached }: { reached: boolean }) {
+export function SimIntro() {
+  return <div className="sim" />;
+}
+
+const patch = (p: Partial<AppState>) => useStore.getState().patch(p);
+
+// The maroon stage. Runs idle → dark → playing → done while the sim_intro
+// stop is current, and goes back to idle (fading to white) when it isn't.
+export function SimStage() {
   const sim = useSimulation();
-  const replay = useStore((s) => s.simReplay);
+  const phase = useStore((s) => s.simStage);
+  const onIntro = useStore((s) => s.currentStopId === "sim_intro");
+  const introSaid = useStore((s) => s.lineDone === "sim_intro:sim_intro");
+  const runId = useStore((s) => s.simReplay);
+  const up = onIntro && phase !== "idle";
+
+  useEffect(() => {
+    if (!onIntro && phase !== "idle") patch({ simStage: "idle" });
+  }, [onIntro, phase]);
+
+  // Once the intro line has been said in full, darken the ground...
+  useEffect(() => {
+    if (!onIntro || !introSaid || !sim || phase !== "idle") return;
+    const t = window.setTimeout(
+      () => patch({ simStage: "dark" }),
+      stage.afterLineMs,
+    );
+    return () => window.clearTimeout(t);
+  }, [onIntro, introSaid, sim, phase]);
+
+  // ...then play the futures.
+  useEffect(() => {
+    if (phase !== "dark") return;
+    const t = window.setTimeout(
+      () => patch({ simStage: "playing" }),
+      prefersReducedMotion() ? 0 : stage.darkenMs,
+    );
+    return () => window.clearTimeout(t);
+  }, [phase]);
+
+  // The rest of the page restyles for the maroon ground (narration in
+  // white, rail and meter out of the way).
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-stage", up);
+    return () => document.documentElement.removeAttribute("data-stage");
+  }, [up]);
+
   return (
-    <div className="sim">
-      {sim && reached && (
-        <div className="sim__plate">
-          <MonteCarloPaper
+    <div className="stage" data-up={up}>
+      {sim && (
+        <div className="stage__plot">
+          <FuturesPlayback
             paths={sim.sample_paths}
             states={sim.states.map((s) => ui.simulation.stateNames[s] ?? s)}
-            bands={sim.summary.bands}
-            totalFutures={sim.n_samples}
-            laneSpacing={48}
-            replay={replay}
-            showReplay={false}
+            phase={phase}
+            runId={runId}
+            onDone={() => patch({ simStage: "done" })}
           />
         </div>
       )}

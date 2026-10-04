@@ -551,12 +551,102 @@ h3 {
   min-height: 100svh;
   padding: 8vh var(--layout-gutter) 0;
 }
-.sim__plate {
-  max-width: 68rem;
+
+/* The simulation stage: a fixed maroon ground that fades in once the
+   narrator's intro line is said, with the futures centered on it. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: var(--maroon);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--stage-darken) var(--ease);
 }
-.sim__plate > div {
-  border: 0 !important;
-  border-radius: 0 !important;
+.stage[data-up="true"] {
+  opacity: 1;
+}
+.stage__plot {
+  position: absolute;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(72rem, calc(100vw - 2 * var(--layout-gutter)));
+  height: 58vh;
+}
+.futures {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--white);
+}
+.futures__canvas {
+  display: block;
+  width: 100%;
+}
+.futures__state,
+.futures__axis {
+  opacity: 0;
+  transition: opacity var(--dur-move) var(--ease);
+}
+.futures[data-shown="true"] .futures__state,
+.futures[data-shown="true"] .futures__axis {
+  opacity: 1;
+}
+.futures__state {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  text-align: right;
+  font-size: var(--type-small);
+  line-height: 1.2;
+  color: var(--white-72);
+}
+.futures__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.futures__tick {
+  position: absolute;
+  top: 0.6rem;
+  width: 1px;
+  height: 0.5rem;
+  background: var(--white-40);
+}
+.futures__end {
+  position: absolute;
+  top: 1.35rem;
+  transform: translateX(-50%);
+  font-size: var(--type-micro);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--white-72);
+}
+
+/* While the stage is up: the narration in white on a maroon scrim, and the
+   rail and meter out of the way. */
+.rail,
+.meter {
+  transition: opacity var(--dur-fade) var(--ease);
+}
+:root[data-stage] .narration__line,
+:root[data-stage] .narration__answers {
+  color: var(--white);
+}
+:root[data-stage] .narration__scrim {
+  background: radial-gradient(
+    ellipse closest-side at 50% 55%,
+    var(--maroon-90) 55%,
+    var(--maroon-0) 100%
+  );
+}
+:root[data-stage] .narration :focus-visible {
+  outline-color: var(--white);
+}
+:root[data-stage] .rail,
+:root[data-stage] .meter {
+  opacity: 0;
+  pointer-events: none;
 }
 .sim--summary {
   padding-top: 12vh;

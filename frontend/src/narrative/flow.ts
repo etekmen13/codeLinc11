@@ -297,11 +297,14 @@ export function buildFlow(s: AppState): Flow {
         id: "sim_intro",
         section: "simulation",
         kind: "sim_intro",
+        // The intro line, then (after the playback) Next and Replay.
         beat: sim
-          ? beat("sim_intro", {
-              months: sim.horizon,
-              futures: sim.n_samples.toLocaleString(),
-            })
+          ? s.simStage === "done"
+            ? beat("sim_played")
+            : beat("sim_intro", {
+                months: sim.horizon,
+                futures: sim.n_samples.toLocaleString(),
+              })
           : s.simulation.problems
             ? statusBeat(
                 "sim_intro",

@@ -42,15 +42,9 @@ export const sectionPresence: Record<SectionId, Presence> = {
   closing: "full",
 };
 
-// Stops that differ from their section. holdMs keeps him at full size, with
-// the beat's expression, before he leaves. Loading and error lines are
-// always delivered at full size.
-export const stopPresence: Record<
-  string,
-  { presence: Presence; holdMs?: number }
-> = {
-  sim_intro: { presence: "away", holdMs: 1400 },
-};
+// While the maroon simulation stage is up, the futures get the whole screen.
+// He stays for his intro line; the stage only darkens once it is said.
+export const stagePresence: Presence = "away";
 
 // Stops without a narrator line (summary, dentists, care plan).
 export const contentExpression: { idle: Expression; loading: Expression } = {

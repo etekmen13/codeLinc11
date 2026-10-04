@@ -10,6 +10,7 @@ import type {
   MemberInput,
 } from "../api";
 import type { Reaction } from "../narrative/script";
+import type { StagePhase } from "../simulation/playbackConfig";
 import type {
   CareComparison,
   CarePlan,
@@ -150,6 +151,11 @@ export interface AppState {
   currentStopId: string;
   retry: number; // bump to resend every request
   simReplay: number; // bump to replay the futures animation
+  // The maroon simulation stage: idle (white page), dark (ground fading to
+  // maroon), playing, done (Next and Replay on offer).
+  simStage: StagePhase;
+  // "stopId:beatId" of the last narrator line fully typed out.
+  lineDone: string | null;
 
   setAnswers: (patch: Partial<Answers>) => void;
   patch: (patch: Partial<AppState>) => void;
@@ -176,6 +182,8 @@ export const useStore = create<AppState>()((set) => ({
   currentStopId: "intro",
   retry: 0,
   simReplay: 0,
+  simStage: "idle",
+  lineDone: null,
 
   setAnswers: (patch) => set((s) => ({ answers: { ...s.answers, ...patch } })),
   patch: (patch) => set(patch),
@@ -188,6 +196,7 @@ export const useStore = create<AppState>()((set) => ({
       credential: null,
       reaction: null,
       advanceFrom: null,
+      simStage: "idle",
       scrollTarget: "intro",
     }),
 }));

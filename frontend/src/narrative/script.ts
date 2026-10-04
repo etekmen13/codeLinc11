@@ -172,6 +172,14 @@ const beatList: Beat[] = [
     id: "sim_intro",
     expression: "thinking",
     line: "I'm going to play out the next {months} months {futures} times, using your answers. Each line is one possible future for that tooth.",
+    // No options: once the line is typed, the stage darkens and the futures
+    // play. sim_played follows on the same stop.
+  },
+  {
+    // On the maroon stage, after the playback.
+    id: "sim_played",
+    expression: "thinking",
+    line: "The brighter a path, the more futures took it.",
     options: [
       { label: "Next", value: "continue" },
       { label: "Replay", value: "replay", small: true },
