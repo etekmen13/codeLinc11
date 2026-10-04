@@ -67,6 +67,11 @@ def test_past_services_deny_cleaning_until_window_clears():
     assert all(c.cost.covered for c in on_time.in_network)
 
 
+def test_date_defaults_to_the_members_as_of():
+    result = find_providers("D2391", SUMMIT.plan, SUMMIT.default_member)
+    assert result.date_of_service == date.fromisoformat(SUMMIT.default_member.as_of)
+
+
 client = TestClient(main.app)
 
 

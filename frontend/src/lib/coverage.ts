@@ -56,11 +56,11 @@ export function waitingPeriodEnds(
   );
 }
 
+// Checked on the member's as_of date, the backend's single "today".
 export function isInWaitingPeriod(
   plan: Plan,
-  member: Pick<MemberStatus, "coverage_start">,
+  member: Pick<MemberStatus, "coverage_start" | "as_of">,
   category: InsuranceType,
-  on: Date = new Date(),
 ): boolean {
-  return on < waitingPeriodEnds(plan, member, category);
+  return parseISODate(member.as_of) < waitingPeriodEnds(plan, member, category);
 }

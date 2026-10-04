@@ -49,10 +49,31 @@ class PastService:
 
 
 @dataclass(frozen=True)
+class Fsa:
+    """A health flexible spending account: pre-tax money for the member's
+    share of dental costs. It is an employer benefit separate from the dental
+    plan, so it never changes what the plan pays. Next FSA year is assumed to
+    have the same rules. Toy values."""
+
+    balance: float  # unspent this FSA year, as of the member's as_of
+    year_end: str  # ISO date; last day of this FSA year
+    # Expenses up to this ISO date can still use this year's balance. A plan
+    # offers a grace period or a carryover, not both.
+    grace_period_end: str | None
+    carryover_limit: float  # unspent dollars kept for next year; 0 = none
+    election_limit: float  # most the member can elect for a year
+    # Combined federal, state, and payroll rate: what a pre-tax dollar saves.
+    marginal_tax_rate: float
+
+
+@dataclass(frozen=True)
 class MemberStatus:
     """Per-employee state. In v0 each sample plan ships with a default member;
     a real system would look this up by subscriber ID."""
 
+    # ISO date the balances below describe. The single "today" for the
+    # backend: simulations start here and pricing defaults to it.
+    as_of: str
     coverage_start: str  # ISO date; waiting periods count from here
     amount_used: float  # this plan year
     deductible_met: float  # this plan year
@@ -60,6 +81,7 @@ class MemberStatus:
     # apart from amount_used, which also covers exams, X-rays, and other
     # services outside this catalog.
     past_services: tuple[PastService, ...] = ()
+    fsa: Fsa | None = None  # None if the employer offers no FSA
 
 
 @dataclass(frozen=True)
@@ -90,6 +112,9 @@ class Provider:
     fees: dict[str, float]  # procedure code -> billed fee; missing = not offered
     cash_prices: dict[str, float]  # procedure code -> self-pay price; missing = none
 
+
+# The date every sample member's balances describe.
+SAMPLE_AS_OF = "2026-10-01"
 
 SAMPLE_PLANS: tuple[SamplePlan, ...] = (
     SamplePlan(
@@ -132,6 +157,7 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_example="SMT-4821937",
         ),
         MemberStatus(
+            as_of=SAMPLE_AS_OF,
             coverage_start="2025-01-01",
             amount_used=350,
             deductible_met=50,
@@ -140,6 +166,16 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             past_services=(
                 PastService("D1110", "2025-10-15"),
                 PastService("D1110", "2026-04-14"),
+            ),
+            # A grace period: care until mid-March can use this year's
+            # balance and next plan year's fresh maximum.
+            fsa=Fsa(
+                balance=300,
+                year_end="2026-12-31",
+                grace_period_end="2027-03-15",
+                carryover_limit=0,
+                election_limit=3400,
+                marginal_tax_rate=0.30,
             ),
         ),
     ),
@@ -183,7 +219,21 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_pattern=r"HB\d{9}",
             subscriber_id_example="HB302118774",
         ),
-        MemberStatus(coverage_start="2026-07-01", amount_used=0, deductible_met=0),
+        MemberStatus(
+            as_of=SAMPLE_AS_OF,
+            coverage_start="2026-07-01",
+            amount_used=0,
+            deductible_met=0,
+            # A carryover: up to $680 of unspent money moves to next year.
+            fsa=Fsa(
+                balance=250,
+                year_end="2026-12-31",
+                grace_period_end=None,
+                carryover_limit=680,
+                election_limit=3400,
+                marginal_tax_rate=0.22,
+            ),
+        ),
     ),
     SamplePlan(
         # Most of the maximum already used: splitting treatment across the
@@ -226,6 +276,7 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             subscriber_id_example="K417-2290-08",
         ),
         MemberStatus(
+            as_of=SAMPLE_AS_OF,
             coverage_start="2024-01-01",
             amount_used=1100,
             deductible_met=100,
@@ -237,6 +288,16 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 PastService("D1110", "2026-02-18"),
                 PastService("D3330", "2026-03-04"),
                 PastService("D2391", "2026-05-06"),
+            ),
+            # Use it or lose it: the balance pulls spending into this year
+            # while the nearly used maximum pushes it into the next.
+            fsa=Fsa(
+                balance=400,
+                year_end="2026-12-31",
+                grace_period_end=None,
+                carryover_limit=0,
+                election_limit=3400,
+                marginal_tax_rate=0.30,
             ),
         ),
     ),
@@ -312,6 +373,18 @@ PROCEDURES: tuple[Procedure, ...] = (
         "extraction",
     ),
 )
+
+# What it takes to treat a tooth found in each state, in billing order (the
+# first line absorbs the deductible). Prices a tooth that got worse than the
+# procedure the member picked. v0 bills a whole bundle on one date; v1 may
+# split multi-visit work (root canal then crown) into dated steps.
+TREATMENT_FOR_STATE: dict[str, tuple[str, ...]] = {
+    "healthy": (),
+    "early_lesion": ("D1206",),
+    "cavity": ("D2391",),
+    "root_canal": ("D3330", "D2740"),
+    "extraction": ("D7140", "D6010", "D6065"),
+}
 
 ALL_PLANS = frozenset({"summit-ppo-plus", "harbor-ppo-basic", "keystone-ppo"})
 
@@ -477,6 +550,41 @@ def is_valid_subscriber_id(plan: Plan, subscriber_id: str) -> bool:
     return re.fullmatch(plan.subscriber_id_pattern, subscriber_id) is not None
 
 
+def _check_member(s: SamplePlan) -> None:
+    m, pid = s.default_member, s.plan.id
+    as_of = date.fromisoformat(m.as_of)
+    year_start = date.fromisoformat(s.plan.plan_year_start)
+    # amount_used and deductible_met describe the plan year starting
+    # plan_year_start, so as_of must fall inside it.
+    if not year_start <= as_of < year_start.replace(year=year_start.year + 1):
+        raise ValueError(f"plan {pid}: as_of is outside the current plan year")
+    if date.fromisoformat(m.coverage_start) > as_of:
+        raise ValueError(f"plan {pid}: coverage starts after as_of")
+    history = m.past_services
+    if any(h.cdt_code not in PROCEDURES_BY_CODE for h in history):
+        raise ValueError(f"plan {pid}: past service has unknown procedure")
+    dates = [date.fromisoformat(h.date_of_service) for h in history]
+    if dates != sorted(dates):
+        raise ValueError(f"plan {pid}: past services must be oldest first")
+    if dates and dates[-1] > as_of:
+        raise ValueError(f"plan {pid}: past service after as_of")
+    f = m.fsa
+    if f is None:
+        return
+    year_end = date.fromisoformat(f.year_end)
+    if year_end < as_of:
+        raise ValueError(f"plan {pid}: FSA year ended before as_of")
+    if f.grace_period_end is not None:
+        if f.carryover_limit:
+            raise ValueError(f"plan {pid}: FSA has both a grace period and carryover")
+        if date.fromisoformat(f.grace_period_end) <= year_end:
+            raise ValueError(f"plan {pid}: FSA grace period ends before the year")
+    if not 0 <= f.balance <= f.election_limit or f.carryover_limit < 0:
+        raise ValueError(f"plan {pid}: FSA amounts out of range")
+    if not 0 <= f.marginal_tax_rate < 1:
+        raise ValueError(f"plan {pid}: FSA tax rate must be in [0, 1)")
+
+
 def _check() -> None:
     if len(PLANS_BY_ID) != len(SAMPLE_PLANS):
         raise ValueError("duplicate plan id")
@@ -485,6 +593,14 @@ def _check() -> None:
     for p in PROCEDURES:
         if p.treats_state not in STATE_INDEX:
             raise ValueError(f"procedure {p.cdt_code} treats unknown state")
+    if TREATMENT_FOR_STATE.keys() != STATE_INDEX.keys():
+        raise ValueError("TREATMENT_FOR_STATE needs exactly one entry per state")
+    for state, codes in TREATMENT_FOR_STATE.items():
+        for code in codes:
+            if code not in PROCEDURES_BY_CODE:
+                raise ValueError(f"treatment for {state}: unknown procedure {code}")
+            if PROCEDURES_BY_CODE[code].treats_state != state:
+                raise ValueError(f"treatment for {state}: {code} treats another state")
     for s in SAMPLE_PLANS:
         if not is_valid_subscriber_id(s.plan, s.plan.subscriber_id_example):
             raise ValueError(f"plan {s.plan.id}: example ID fails its pattern")
@@ -493,12 +609,7 @@ def _check() -> None:
                 raise ValueError(
                     f"plan {s.plan.id}: fee schedule must price every procedure"
                 )
-        history = s.default_member.past_services
-        if any(h.cdt_code not in PROCEDURES_BY_CODE for h in history):
-            raise ValueError(f"plan {s.plan.id}: past service has unknown procedure")
-        dates = [date.fromisoformat(h.date_of_service) for h in history]
-        if dates != sorted(dates):
-            raise ValueError(f"plan {s.plan.id}: past services must be oldest first")
+        _check_member(s)
     if ALL_PLANS != PLANS_BY_ID.keys():
         raise ValueError("ALL_PLANS is out of date")
     if len(PROVIDERS_BY_ID) != len(PROVIDERS):
