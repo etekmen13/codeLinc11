@@ -21,8 +21,11 @@ Amounts are cents.
 Pure logic, no HTTP.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from itertools import combinations
+from math import factorial
 
 import numpy as np
 from numpy.typing import NDArray
@@ -60,11 +63,15 @@ from monte_carlo import (
 )
 from onboarding import Onboarded
 from progression import STATES
+from provider import EXAMPLE_USER_LOCATION, distance_miles
 
 # Visits placed around each plan-year reset: two weeks before, and the
 # first working days after.
 BEFORE_RESET_DAYS = 14
 AFTER_RESET_DAYS = 3
+
+# Smallest expected saving worth a "switch dentists" hint, in cents.
+HINT_MIN_SAVINGS = 1000
 
 
 # Dates
@@ -376,6 +383,7 @@ def evaluate_options(
     provider: Provider,
     pricer: Pricer | None = None,
     bands: tuple[RiskBand, ...] = RISK_BANDS,
+    use_election: bool = True,
 ) -> list[Scored]:
     """Every candidate date with every payment path, in date order."""
     if o.procedure.cdt_code not in provider.fees:
@@ -384,7 +392,7 @@ def evaluate_options(
         raise ValueError("simulation was run for a different onboarding")
     pricer = pricer or Pricer(o)
     return [
-        score(o, sim, provider, c, path, pricer, bands)
+        score(o, sim, provider, c, path, pricer, bands, use_election)
         for c in candidate_dates(o, sim, provider, bands)
         for path in payment_paths(o, provider)
     ]
@@ -412,17 +420,26 @@ def savings(baseline: Scored, option: Scored) -> Savings:
     )
 
 
-def lowest_cost(scored: list[Scored], cvar_weight: float = 0.0) -> Scored:
+Metric = Callable[[Option], CostStats]
+
+
+def lowest_cost(
+    scored: list[Scored],
+    cvar_weight: float = 0.0,
+    metric: Metric = lambda option: option.cost,
+) -> Scored:
     """Lowest expected cost, plus cvar_weight times the mean of the costliest
     5% of futures. Ties go to the earlier date, then to insured."""
-    return min(
-        scored,
-        key=lambda s: (
-            round(s.option.cost.mean + cvar_weight * s.option.cost.cvar95),
+
+    def key(s: Scored) -> tuple[int, date, bool]:
+        c = metric(s.option)
+        return (
+            round(c.mean + cvar_weight * c.cvar95),
             s.option.date,
             s.option.path == "cash",
-        ),
-    )
+        )
+
+    return min(scored, key=key)
 
 
 def is_baseline(option: Option, as_of: date) -> bool:
@@ -432,19 +449,185 @@ def is_baseline(option: Option, as_of: date) -> bool:
 
 
 @dataclass(frozen=True)
+class Evaluated:
+    """One dentist's options, picked on one simulation and reported on
+    another.
+
+    Picking the best of many options on one set of futures favors the
+    option that got lucky draws, which inflates its savings. Re-scoring on
+    independent futures removes that bias.
+    """
+
+    select: list[Scored]
+    report: dict[tuple[date, PaymentPath], Scored]
+
+    def reported(self, s: Scored) -> Scored:
+        return self.report[(s.option.date, s.option.path)]
+
+    def baseline(self, as_of: date) -> Scored:
+        return next(
+            self.reported(s) for s in self.select if is_baseline(s.option, as_of)
+        )
+
+
+def evaluate(
+    o: Onboarded,
+    provider: Provider,
+    select_sim: SimulationResult,
+    report_sim: SimulationResult,
+    pricer: Pricer,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+    use_election: bool = True,
+) -> Evaluated:
+    select = evaluate_options(o, select_sim, provider, pricer, bands, use_election)
+    report = {
+        (s.option.date, s.option.path): score(
+            o,
+            report_sim,
+            provider,
+            CandidateDate(s.option.date, s.option.labels),
+            s.option.path,
+            pricer,
+            bands,
+            use_election,
+        )
+        for s in select
+    }
+    return Evaluated(select, report)
+
+
+# What each planning lever contributes to the savings:
+#   timing:       dates other than the earliest
+#   cash:         paying a dentist's cash price instead of claiming
+#   fsa_planning: choosing with the FSA in mind, including next year's
+#                 election (without it, this year's balance still pays)
+LEVERS = ("timing", "cash", "fsa_planning")
+
+
+def _choice(
+    o: Onboarded,
+    full: Evaluated,
+    plain: Evaluated,
+    levers: frozenset[str],
+    allowed: set[str],
+    cvar_weight: float,
+) -> Scored:
+    """The option chosen with only `levers`, re-scored for reporting."""
+    planned = "fsa_planning" in levers
+    ev = full if planned else plain
+    pool = [
+        s
+        for s in ev.select
+        if s.option.band in allowed
+        and ("timing" in levers or s.option.date == o.as_of)
+        and ("cash" in levers or s.option.path == "insured")
+    ]
+    metric: Metric = (lambda x: x.cost) if planned else (lambda x: x.member_share)
+    return ev.reported(lowest_cost(pool, cvar_weight, metric))
+
+
+def lever_savings(
+    o: Onboarded,
+    full: Evaluated,
+    plain: Evaluated,
+    allowed: set[str],
+    cvar_weight: float,
+) -> dict[str, float]:
+    """Each lever's share of the expected savings, by Shapley value: its
+    added saving averaged over every order of turning the levers on.
+
+    The levers interact (an FSA election can make a later date pay off), so
+    what a lever adds depends on which others are on. Averaging over orders
+    makes the shares add up to the total.
+    """
+    base = float(full.baseline(o.as_of).costs.mean())
+    value: dict[frozenset[str], float] = {}
+    for n in range(len(LEVERS) + 1):
+        for subset in combinations(LEVERS, n):
+            key = frozenset(subset)
+            chosen = _choice(o, full, plain, key, allowed, cvar_weight)
+            value[key] = base - float(chosen.costs.mean())
+
+    total = len(LEVERS)
+    shares: dict[str, float] = {}
+    for lever in LEVERS:
+        others = [x for x in LEVERS if x != lever]
+        share = 0.0
+        for n in range(total):
+            weight = factorial(n) * factorial(total - n - 1) / factorial(total)
+            for subset in combinations(others, n):
+                key = frozenset(subset)
+                share += weight * (value[key | {lever}] - value[key])
+        shares[lever] = share
+    return shares
+
+
+@dataclass(frozen=True)
+class ProviderHint:
+    """Another dentist whose lowest-cost option within the tolerance costs
+    less than the chosen dentist's."""
+
+    provider_id: str
+    name: str
+    in_network: bool
+    distance_miles: float
+    option: Option
+    savings: Savings  # versus the chosen dentist's lowest-cost option
+
+
+def provider_hint(
+    o: Onboarded,
+    chosen: Provider,
+    chosen_best: Scored,
+    select_sim: SimulationResult,
+    report_sim: SimulationResult,
+    pricer: Pricer,
+    allowed: set[str],
+    cvar_weight: float,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
+) -> ProviderHint | None:
+    """The other dentist with the largest expected saving, nearest first on
+    ties; None if no one saves at least HINT_MIN_SAVINGS."""
+    found: list[ProviderHint] = []
+    for d in pricer.providers:
+        if d.id == chosen.id or o.procedure.cdt_code not in d.fees:
+            continue
+        ev = evaluate(o, d, select_sim, report_sim, pricer, bands)
+        within = [s for s in ev.select if s.option.band in allowed]
+        best = ev.reported(lowest_cost(within, cvar_weight))
+        miles = distance_miles(EXAMPLE_USER_LOCATION, (d.lat, d.lon))
+        found.append(
+            ProviderHint(
+                provider_id=d.id,
+                name=d.name,
+                in_network=o.plan.id in d.networks,
+                distance_miles=round(miles, 1),
+                option=best.option,
+                savings=savings(chosen_best, best),
+            )
+        )
+    if not found:
+        return None
+    top = min(found, key=lambda h: (-round(h.savings.mean), h.distance_miles))
+    return top if top.savings.mean >= HINT_MIN_SAVINGS else None
+
+
+@dataclass(frozen=True)
 class CarePlan:
     as_of: date
     provider_id: str
     tolerance: str  # highest risk band the member accepts
     # Every option, in date order; numbers come from a fresh simulation
-    # (see choose_plan)
+    # (see Evaluated)
     options: tuple[Option, ...]
     lowest_cost: Option  # lowest expected cost within the tolerance
     baseline: Option
     savings: Savings  # baseline minus lowest_cost
+    lever_savings: dict[str, float]  # expected savings by lever; sums to total
     # The lowest-cost option overall, if it is cheaper but in a riskier band
     beyond_tolerance: Option | None
     beyond_tolerance_savings: Savings | None  # versus lowest_cost
+    provider_hint: ProviderHint | None
     risk: OutcomeSummary
     assumptions: tuple[str, ...]
 
@@ -459,56 +642,38 @@ def choose_plan(
     bands: tuple[RiskBand, ...] = RISK_BANDS,
     providers: tuple[Provider, ...] = PROVIDERS,
 ) -> CarePlan:
-    """Find the lowest-cost option within the tolerance on select_sim, then
-    report every number from report_sim.
-
-    Picking the best of many options on one set of futures favors the
-    option that got lucky draws, which inflates its savings. Re-scoring on
-    independent futures removes that bias.
-    """
+    """Find the lowest-cost option within the tolerance on select_sim, and
+    report every number from report_sim."""
     names = [b.name for b in bands]
     if tolerance not in names:
         raise ValueError(f"unknown risk tolerance {tolerance!r}; use one of {names}")
     allowed = set(names[: names.index(tolerance) + 1])
 
     pricer = Pricer(o, providers)
-    selected = evaluate_options(o, select_sim, provider, pricer, bands)
-    within = [s for s in selected if s.option.band in allowed]
+    full = evaluate(o, provider, select_sim, report_sim, pricer, bands)
+    plain = evaluate(o, provider, select_sim, report_sim, pricer, bands, False)
+    within = [s for s in full.select if s.option.band in allowed]
     best = lowest_cost(within, cvar_weight)
-    overall = lowest_cost(selected, cvar_weight)
+    overall = lowest_cost(full.select, cvar_weight)
 
-    reported = {
-        (s.option.date, s.option.path): s
-        for s in (
-            score(
-                o,
-                report_sim,
-                provider,
-                CandidateDate(s.option.date, s.option.labels),
-                s.option.path,
-                pricer,
-                bands,
-            )
-            for s in selected
-        )
-    }
-
-    def again(s: Scored) -> Scored:
-        return reported[(s.option.date, s.option.path)]
-
-    baseline = next(again(s) for s in selected if is_baseline(s.option, o.as_of))
-    chosen = again(best)
-    beyond = again(overall) if overall is not best else None
+    baseline = full.baseline(o.as_of)
+    chosen = full.reported(best)
+    beyond = full.reported(overall) if overall is not best else None
+    hint = provider_hint(
+        o, provider, chosen, select_sim, report_sim, pricer, allowed, cvar_weight, bands
+    )
     return CarePlan(
         as_of=o.as_of,
         provider_id=provider.id,
         tolerance=tolerance,
-        options=tuple(s.option for s in reported.values()),
+        options=tuple(s.option for s in full.report.values()),
         lowest_cost=chosen.option,
         baseline=baseline.option,
         savings=savings(baseline, chosen),
+        lever_savings=lever_savings(o, full, plain, allowed, cvar_weight),
         beyond_tolerance=beyond.option if beyond else None,
         beyond_tolerance_savings=savings(chosen, beyond) if beyond else None,
+        provider_hint=hint,
         risk=report_sim.summary,
         assumptions=assumptions(o),
     )

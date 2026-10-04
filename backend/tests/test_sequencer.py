@@ -268,3 +268,42 @@ def test_plan_care_is_reproducible():
     assert a == plan_care(o, UPTOWN, n_samples=2000)
     assert a.lowest_cost.band == "low"
     assert a.assumptions
+
+
+def test_lever_savings_split_the_total():
+    # Harbor at low tolerance saves 125.40 by moving to January, which only
+    # pays off with next year's election: timing alone or FSA planning alone
+    # saves nothing, both together save 125.40, so Shapley splits it evenly.
+    o, sim = harbor()
+    plan = choose_plan(o, UPTOWN, sim, sim, "low")
+    shares = plan.lever_savings
+    assert shares["timing"] == pytest.approx(6270)
+    assert shares["fsa_planning"] == pytest.approx(6270)
+    assert shares["cash"] == pytest.approx(0)
+    assert sum(shares.values()) == pytest.approx(plan.savings.mean)
+
+
+# Summit crown, no progression. Plaza Midwood is out of network: A = 1000,
+# billed 1500. Its lowest-cost option is January (grace period): d = 50,
+# plan 50% of 950 = 475, you owe 525 + 500 balance bill = 1025; $300 of FSA,
+# 725 elected at 30%: 0.7 * 725 = 507.50. In network (A = 950) January is
+# plan 450, you 500, 200 elected: 140. Uptown, SouthPark, and University City
+# tie at 140; Uptown is nearest.
+
+
+def test_hint_names_a_cheaper_dentist():
+    o = onboarded("summit-ppo-plus", "D2740")
+    sim = fake_sim(o)
+    plan = choose_plan(o, PROVIDERS_BY_ID["plaza-midwood"], sim, sim)
+    assert plan.lowest_cost.cost.mean == pytest.approx(50750)
+    hint = plan.provider_hint
+    assert hint is not None
+    assert (hint.provider_id, hint.in_network) == ("uptown-smiles", True)
+    assert hint.option.date == date(2027, 1, 4)
+    assert hint.savings.mean == pytest.approx(36750)
+
+
+def test_no_hint_when_no_one_is_cheaper():
+    o = onboarded("summit-ppo-plus", "D2740")
+    sim = fake_sim(o)
+    assert choose_plan(o, UPTOWN, sim, sim).provider_hint is None
