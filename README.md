@@ -92,3 +92,24 @@ Run `uv sync` in backend after updating, and `npm run build` in frontend.
 
 Subscriber IDs are optional. PDF and manual intake work without one; IDs never
 trigger eligibility lookup and are not checked against fictional demo formats.
+
+## Own-words treatment matching
+
+The narrative procedure step supports a multiline description, examples, up to
+five structured follow-up answers, and explicit confirmation of the matched
+procedure. Editing the description resets prior follow-ups; leaving the input
+cancels pending lookup. Requests have a 45-second browser timeout with retry/list
+recovery. Bedrock matching uses a 25-second read timeout without automatic retry.
+
+`POST /api/cdt/map` accepts `treatment_description` and optional `clarifications`
+(`[{"question": "Which tooth?", "answer": "Molar"}]`). The model sees only reference
+codes that the app can price. Invalid codes, contradictory response states,
+duplicate candidates, and repeated answered questions fall back to conservative
+keyword matching. Symptoms alone require a dentist's recommended treatment;
+missing material/tooth/scope details and multiple procedures trigger clarification.
+Unpriced distinctions return no match rather than substituting another service.
+The original description-only API remains supported.
+
+Configure `BEDROCK_MODEL_ID` and AWS credentials to exercise live AI matching.
+Tests cover mocked Bedrock responses and offline behavior; no live-model accuracy
+claim is made. Costs and availability still use the app's existing demo data.

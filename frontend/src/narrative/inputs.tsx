@@ -5,7 +5,7 @@ import { map_treatment, problems_of } from "../api";
 import { normalize_subscriber_id } from "../onboarding/subscriber_id";
 import { samplePlan, SUBSCRIBER_MAX } from "../state/selectors";
 import { useStore } from "../state/store";
-import type { CdtMapping, Procedure } from "../types";
+import type { CdtMapping, ClarificationTurn, Procedure } from "../types";
 import { answer } from "./answer";
 import type { OptionView, Stop } from "./flow";
 import { Options } from "./Options";
@@ -64,13 +64,13 @@ function SubscriberField({ stop, saved }: { stop: Stop; saved: string }) {
 }
 
 // Procedure: catalog options, or the user's own words matched by
-// /api/cdt/map with up to three clarifying questions.
+// /api/cdt/map with structured clarification history.
 export function ProcedureInput({ stop }: { stop: Stop }) {
   const procedures = useStore((s) => s.form.data?.procedures) ?? NO_PROCEDURES;
   const [mode, setMode] = useState<"list" | "describe">("list");
   const [text, setText] = useState("");
   const [reply, setReply] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<ClarificationTurn[]>([]);
   const [mapping, setMapping] = useState<CdtMapping | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -85,7 +85,22 @@ export function ProcedureInput({ stop }: { stop: Stop }) {
       : null;
   };
 
+  function resetLookup() {
+    abort.current?.abort();
+    setLoading(false);
+    setMapping(null);
+    setHistory([]);
+    setReply("");
+    setError("");
+  }
+
   async function check(clarify: boolean) {
+    if (
+      loading ||
+      text.trim().length < 5 ||
+      (clarify && (!reply.trim() || history.length >= 5))
+    )
+      return;
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
@@ -93,25 +108,32 @@ export function ProcedureInput({ stop }: { stop: Stop }) {
       clarify && mapping?.clarification_question
         ? [
             ...history,
-            `Question: ${mapping.clarification_question} Answer: ${reply.trim()}`,
+            { question: mapping.clarification_question, answer: reply.trim() },
           ]
         : [];
+    let timedOut = false;
+    const timer = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 45000);
     setLoading(true);
     setError("");
     try {
-      const result = await map_treatment(
-        [text.trim(), ...added].join("\n"),
-        controller.signal,
-      );
+      const result = await map_treatment(text.trim(), controller.signal, added);
       if (controller.signal.aborted) return;
       setMapping(result);
       setHistory(added);
       setReply("");
     } catch (err) {
-      if (!controller.signal.aborted)
+      if (timedOut)
+        setError(
+          "That took too long. Retry, edit your description, or choose a treatment from the list.",
+        );
+      else if (!controller.signal.aborted)
         setError(problems_of(err).join(" ") || describe.error);
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      window.clearTimeout(timer);
+      if (abort.current === controller) setLoading(false);
     }
   }
 
@@ -149,36 +171,58 @@ export function ProcedureInput({ stop }: { stop: Stop }) {
 
   return (
     <div className="narration__field" aria-live="polite">
-      {!clarifying && (
-        <>
-          <label className="sr-only" htmlFor="treatment">
-            {describe.option}
-          </label>
-          <input
-            id="treatment"
-            className="inline-input inline-input--wide"
-            value={text}
-            maxLength={2000}
-            placeholder={describe.placeholder}
-            disabled={loading}
-            onChange={(e) => {
-              setText(e.target.value);
-              setMapping(null);
-              setHistory([]);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && text.trim().length >= 5)
-                void check(false);
-            }}
-          />
-        </>
-      )}
+      <>
+        <label className="sr-only" htmlFor="treatment">
+          {describe.option}
+        </label>
+        <textarea
+          rows={3}
+          id="treatment"
+          className="inline-input inline-input--wide"
+          value={text}
+          maxLength={2000}
+          placeholder={describe.placeholder}
+          disabled={loading}
+          onChange={(e) => {
+            setText(e.target.value);
+            resetLookup();
+          }}
+          onKeyDown={(e) => {
+            if (
+              e.key === "Enter" &&
+              (e.ctrlKey || e.metaKey) &&
+              text.trim().length >= 5
+            ) {
+              e.preventDefault();
+              void check(false);
+            }
+          }}
+        />
+        <p className="narration__hint">{describe.help}</p>
+        {!mapping && (
+          <div className="treatment-examples" aria-label="Example descriptions">
+            {describe.examples.map((example) => (
+              <button
+                key={example}
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  resetLookup();
+                  setText(example);
+                }}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
+      </>
       {clarifying && (
         <>
           <label className="narration__sub" htmlFor="clarify">
             {mapping.clarification_question}
           </label>
-          {history.length < 3 ? (
+          {history.length < 5 ? (
             <input
               id="clarify"
               className="inline-input inline-input--wide"
@@ -187,13 +231,37 @@ export function ProcedureInput({ stop }: { stop: Stop }) {
               disabled={loading}
               onChange={(e) => setReply(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && reply.trim()) void check(true);
+                if (e.key === "Enter" && reply.trim() && !loading)
+                  void check(true);
               }}
             />
           ) : (
             <p className="narration__hint">{describe.tooManyQuestions}</p>
           )}
         </>
+      )}
+      {history.length > 0 && (
+        <details className="narration__hint">
+          <summary>Details you provided</summary>
+          {history.map((turn, i) => (
+            <p key={i}>
+              {turn.question}
+              <br />
+              {turn.answer}
+            </p>
+          ))}
+        </details>
+      )}
+      {mapping?.status === "candidate" && (
+        <div className="narration__hint">
+          {mapping.candidate_codes.map((c) => (
+            <p key={c.code}>
+              {procedures.find((p) => p.cdt_code === c.code)?.name ?? c.code}:{" "}
+              {c.reason}
+            </p>
+          ))}
+          <p>{describe.confirm}</p>
+        </div>
       )}
       {message && <p className="narration__sub">{message}</p>}
       {error && (
@@ -220,15 +288,18 @@ export function ProcedureInput({ stop }: { stop: Stop }) {
         ]}
         keys={false}
         disabled={(o) =>
+          (loading && o.value !== "__list") ||
           (o.value === "__check" && (loading || text.trim().length < 5)) ||
           (o.value === "__clarify" &&
-            (loading || !reply.trim() || history.length >= 3))
+            (loading || !reply.trim() || history.length >= 5))
         }
         onPick={(o) => {
           if (o.value === "__check") void check(false);
           else if (o.value === "__clarify") void check(true);
-          else if (o.value === "__list") setMode("list");
-          else answer(stop, o);
+          else if (o.value === "__list") {
+            resetLookup();
+            setMode("list");
+          } else answer(stop, o);
         }}
       />
     </div>

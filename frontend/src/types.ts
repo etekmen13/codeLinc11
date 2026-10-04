@@ -129,6 +129,11 @@ export interface NearbyProvider {
   credentials: string[];
 }
 
+export interface ClarificationTurn {
+  question: string;
+  answer: string;
+}
+
 // POST /api/cdt/map: a treatment description matched to catalog codes.
 export interface CdtMapping {
   status: "candidate" | "needs_clarification" | "no_match";

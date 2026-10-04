@@ -55,7 +55,7 @@ def map_cdt(description: str) -> dict:
 
 
 def test_map_without_bedrock_uses_keywords():
-    data = map_cdt("My dentist says I need a root canal")
+    data = map_cdt("My dentist says I need a root canal on a molar")
     assert (data["status"], data["matched_by"]) == ("candidate", "keywords")
     assert [c["code"] for c in data["candidate_codes"]] == ["D3330"]
 
@@ -73,7 +73,7 @@ def test_map_falls_back_when_bedrock_fails(monkeypatch):
 
     monkeypatch.setenv("BEDROCK_MODEL_ID", "some-model")
     monkeypatch.setattr(cdt_mapper, "bedrock_client", fail)
-    data = map_cdt("A crown for a cracked tooth")
+    data = map_cdt("A porcelain crown for a cracked tooth")
     assert data["matched_by"] == "keywords"
     assert [c["code"] for c in data["candidate_codes"]] == ["D2740"]
 

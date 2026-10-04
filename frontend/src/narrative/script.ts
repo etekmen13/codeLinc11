@@ -267,7 +267,15 @@ export const status = {
 export const describe = {
   option: "Describe it in my own words",
   placeholder: "e.g. my dentist said I need a crown on a back tooth",
-  check: "Check",
+  help: "Tell us what your dentist recommended, which tooth, and any material or treatment code you know. If you only have symptoms, say that. Ctrl/⌘ + Enter checks your description.",
+  examples: [
+    "My dentist recommended a porcelain crown on a back tooth",
+    "My dentist said root canal, but I do not know which tooth",
+    "My tooth hurts and I have not seen a dentist yet",
+  ],
+  confirm:
+    "Choose a match only if it agrees with your dentist's treatment plan.",
+  check: "Find a treatment match",
   checking: "Checking…",
   back: "Pick from the list",
   clarifySubmit: "Answer",
@@ -279,7 +287,8 @@ export const describe = {
     "That's a real treatment, but I don't have prices for it. Pick from the list instead.",
   tooManyQuestions:
     "I need more detail than I can get here. Your dentist's treatment plan will name it.",
-  keywordNote: "Matched by keywords, since AI matching isn't set up.",
+  keywordNote:
+    "AI matching is unavailable right now. This result uses a limited keyword search.",
   error: "The lookup failed. Try again in a moment.",
 };
 
