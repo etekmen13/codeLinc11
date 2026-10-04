@@ -67,9 +67,12 @@ class LineOut(BaseModel):
     provider_name: str
     in_network: bool
     path: PaymentPath
-    provider_fee: float
+    provider_fee: float  # what the dentist bills
+    allowed_amount: float  # what the plan recognizes
+    deductible_applied: float  # 0 for cash
     plan_pays: float
     you_pay: float
+    balance_billing: float  # billed minus allowed, out of network; 0 for cash
     denial_reason: DenialReason | None
 
 
@@ -202,8 +205,11 @@ def line_out(x: Line) -> LineOut:
         in_network=x.network == "in",
         path=x.path,
         provider_fee=to_dollars(x.provider_fee),
+        allowed_amount=to_dollars(x.allowed_amount),
+        deductible_applied=to_dollars(x.deductible_applied),
         plan_pays=to_dollars(x.plan_pays),
         you_pay=to_dollars(x.you_pay),
+        balance_billing=to_dollars(x.balance_billing),
         denial_reason=x.denial_reason,
     )
 

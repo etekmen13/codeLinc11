@@ -158,6 +158,44 @@ def test_cash_leaves_benefits_untouched():
     assert outcome.visit.benefits_after == Pricer(o).benefits
 
 
+def test_lines_show_allowed_amount_deductible_and_balance_bill():
+    # Keystone root canal at Uptown in January: negotiated A = 940, fresh
+    # deductible 100, in network so no balance bill.
+    o = onboarded("keystone-ppo", "D3330")
+    (line,) = Pricer(o).visit(UPTOWN, date(2027, 1, 4), "root_canal", False).lines
+    assert (line.allowed_amount, line.deductible_applied, line.balance_billing) == (
+        94000,
+        10000,
+        0,
+    )
+    # Summit crown at Plaza Midwood in January: out of network, A = 1000,
+    # fresh deductible 50, balance bill 1500 - 1000 = 500.
+    o = onboarded("summit-ppo-plus", "D2740")
+    plaza = PROVIDERS_BY_ID["plaza-midwood"]
+    (line,) = (
+        Pricer(o).visit(plaza, date(2027, 1, 4), o.procedure.treats_state, False).lines
+    )
+    assert (line.allowed_amount, line.deductible_applied, line.balance_billing) == (
+        100000,
+        5000,
+        50000,
+    )
+
+
+def test_cash_line_has_no_deductible_or_balance_bill():
+    # Uptown's cash price for a root canal; the plan's allowed amount is
+    # still shown for contrast.
+    o = onboarded("keystone-ppo", "D3330")
+    (line,) = Pricer(o).visit(UPTOWN, date(2027, 1, 4), "root_canal", True).lines
+    assert line.path == "cash"
+    assert (line.you_pay, line.plan_pays) == (100000, 0)
+    assert (line.allowed_amount, line.deductible_applied, line.balance_billing) == (
+        94000,
+        0,
+        0,
+    )
+
+
 def test_referral_for_work_the_chosen_dentist_does_not_do():
     plan = PLANS_BY_ID["keystone-ppo"].plan
     assert provider_for("D2391", NODA, plan) is NODA
