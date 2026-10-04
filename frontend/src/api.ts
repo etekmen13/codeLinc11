@@ -1,6 +1,6 @@
 // Backend calls. Request and response shapes match the Pydantic models in
-// backend/onboarding.py, backend/provider.py, and backend/care_plan_api.py,
-// so what you see in /docs is what these describe.
+// backend/onboarding.py, backend/provider.py, backend/simulation_api.py and
+// backend/care_plan_api.py, so what you see in /docs is what these describe.
 
 import type {
   CareComparison,
@@ -11,6 +11,7 @@ import type {
   QuizAnswers,
   QuizQuestion,
   SamplePlan,
+  ToothSimulation,
 } from "./types";
 
 export interface FormOptions {
@@ -109,6 +110,18 @@ export function fetch_providers(
   body: ProvidersRequest,
 ): Promise<ProvidersResult> {
   return request<ProvidersResult>("/api/providers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+// How the untreated tooth may progress. Same futures as the care plan
+// endpoints, so its risk bands match theirs.
+export function fetch_simulation(
+  body: OnboardingRequest,
+): Promise<ToothSimulation> {
+  return request<ToothSimulation>("/api/simulation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

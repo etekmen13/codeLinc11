@@ -64,3 +64,21 @@ export function isInWaitingPeriod(
 ): boolean {
   return parseISODate(member.as_of) < waitingPeriodEnds(plan, member, category);
 }
+
+export function formatISODate(iso: string): string {
+  return formatDate(parseISODate(iso));
+}
+
+// For line-by-line amounts, where cents matter.
+export function formatMoneyCents(amount: number): string {
+  return amount.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+  });
+}
+
+// A probability as a whole percent; "under 1%" rather than a misleading 0%.
+export function formatPercent(p: number): string {
+  if (p > 0 && p < 0.005) return "under 1%";
+  return `${Math.round(p * 100)}%`;
+}
