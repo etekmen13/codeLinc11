@@ -21,6 +21,7 @@ export interface Draft {
   plan_id?: string;
   subscriber_id: string;
   procedure_code?: string;
+  treatment_description?: string;
   quiz_answers: QuizAnswers;
 }
 

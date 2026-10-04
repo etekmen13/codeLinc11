@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetch_quiz, problems_of } from "../../api";
+import { displayText } from "../../lib/displayText";
 import type { QuizAnswers, QuizQuestion } from "../../types";
 import { is_quiz_complete } from "../draft";
 import { StepNav } from "./StepNav";
@@ -32,7 +33,9 @@ export function QuizStep({
   if (error) {
     return (
       <>
-        <p className="ob-error">Could not load questions: {error.join("; ")}</p>
+        <p className="ob-error">
+          Could not load questions: {displayText(error.join("; "))}
+        </p>
         <StepNav on_back={on_back} on_next={on_next} next_disabled />
       </>
     );

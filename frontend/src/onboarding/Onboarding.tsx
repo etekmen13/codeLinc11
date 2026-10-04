@@ -154,10 +154,12 @@ export function Onboarding({ on_complete }: Props) {
           <ProcedureStep
             procedures={form.procedures}
             procedure_code={draft.procedure_code}
+            description={draft.treatment_description ?? ""}
+            on_description_change={(treatment_description) =>
+              update({ treatment_description })
+            }
             plan={sample.plan}
             member={sample.default_member}
-            // Different procedures get different questions, so a new
-            // procedure clears the old answers.
             on_change={(cdt_code) =>
               update({ procedure_code: cdt_code, quiz_answers: {} })
             }
