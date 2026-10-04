@@ -306,6 +306,120 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             ),
         ),
     ),
+    # Two members who each need two fillings and had the first one today. The
+    # procedure to pick is the second filling (D2391): the "now" option is
+    # both on the same day, and the "after the reset" option staggers the
+    # second into the next benefit year. No FSA, so the difference shows in
+    # full.
+    SamplePlan(
+        # Staggering wins. The first filling took the last $120 of a $1,000
+        # maximum, so a second one today is all out of pocket ($150). The
+        # benefit year starts November 1, so a month from now the maximum
+        # resets and it costs $70 after a new $50 deductible. A short wait
+        # keeps the cavity's risk of getting worse low.
+        Plan(
+            id="summit-value",
+            insurer="Delta Dental",
+            plan_name="Demo Value PPO",
+            annual_maximum=1000,
+            deductible=50,
+            deductible_applies_to=frozenset({"basic", "major"}),
+            coinsurance={"preventive": 1.0, "basic": 0.8, "major": 0.5},
+            waiting_period_months={"preventive": 0, "basic": 0, "major": 0},
+            frequency_limits=(
+                FrequencyLimit("D1110", 2, 12),
+                FrequencyLimit("D2740", 1, 60),
+            ),
+            plan_year_start="2025-11-01",  # resets November 1, a month away
+            in_network_fees={
+                "D1110": 85,
+                "D1206": 28,
+                "D2391": 150,
+                "D3330": 900,
+                "D2740": 950,
+                "D7140": 165,
+                "D6010": 1650,
+                "D6065": 1150,
+            },
+            out_of_network_allowed={
+                "D1110": 95,
+                "D1206": 30,
+                "D2391": 160,
+                "D3330": 950,
+                "D2740": 1000,
+                "D7140": 175,
+                "D6010": 1750,
+                "D6065": 1200,
+            },
+            subscriber_id_pattern=r"SMV-\d{7}",
+            subscriber_id_example="SMV-6150382",
+        ),
+        MemberStatus(
+            as_of=SAMPLE_AS_OF,
+            coverage_start="2025-01-01",
+            # $880 used before today, plus $120 for this morning's filling.
+            amount_used=1000,
+            deductible_met=50,
+            past_services=(
+                PastService("D1110", "2026-03-10"),
+                PastService("D2391", "2026-10-01"),
+            ),
+        ),
+    ),
+    SamplePlan(
+        # Same day wins. The first filling paid this year's whole $100
+        # deductible, so a second one today costs $31; in January the
+        # deductible resets and it costs $111. Staggering costs $80.
+        Plan(
+            id="keystone-standard",
+            insurer="Lincoln Financial",
+            plan_name="Demo Standard PPO",
+            annual_maximum=2000,
+            deductible=100,
+            deductible_applies_to=frozenset({"preventive", "basic", "major"}),
+            coinsurance={"preventive": 1.0, "basic": 0.8, "major": 0.5},
+            waiting_period_months={"preventive": 0, "basic": 0, "major": 0},
+            frequency_limits=(
+                FrequencyLimit("D1110", 2, 12),
+                FrequencyLimit("D2740", 1, 60),
+            ),
+            plan_year_start="2026-01-01",
+            in_network_fees={
+                "D1110": 90,
+                "D1206": 30,
+                "D2391": 155,
+                "D3330": 940,
+                "D2740": 990,
+                "D7140": 170,
+                "D6010": 1700,
+                "D6065": 1200,
+            },
+            out_of_network_allowed={
+                "D1110": 100,
+                "D1206": 35,
+                "D2391": 170,
+                "D3330": 1000,
+                "D2740": 1050,
+                "D7140": 180,
+                "D6010": 1800,
+                "D6065": 1250,
+            },
+            subscriber_id_pattern=r"K\d{3}-\d{4}-\d{2}",
+            subscriber_id_example="K508-3317-04",
+        ),
+        MemberStatus(
+            as_of=SAMPLE_AS_OF,
+            coverage_start="2024-01-01",
+            # $150 used before today, plus $44 for this morning's filling,
+            # which also met the deductible.
+            amount_used=194,
+            deductible_met=100,
+            past_services=(
+                PastService("D1110", "2025-11-12"),
+                PastService("D2391", "2026-10-01"),
+            ),
+        ),
+    ),
 )
 
 PROCEDURES: tuple[Procedure, ...] = (
@@ -391,7 +505,15 @@ TREATMENT_FOR_STATE: dict[str, tuple[str, ...]] = {
     "extraction": ("D7140", "D6010", "D6065"),
 }
 
-ALL_PLANS = frozenset({"summit-ppo-plus", "harbor-ppo-basic", "keystone-ppo"})
+ALL_PLANS = frozenset(
+    {
+        "summit-ppo-plus",
+        "harbor-ppo-basic",
+        "keystone-ppo",
+        "summit-value",
+        "keystone-standard",
+    }
+)
 
 # Charlotte, NC. Billed fees sit around each procedure's typical fee; a cash
 # price is a self-pay discount, which some offices do not offer.
@@ -453,7 +575,9 @@ PROVIDERS: tuple[Provider, ...] = (
         lat=35.2470,
         lon=-80.8020,
         credentials=("DDS",),
-        networks=frozenset({"summit-ppo-plus", "keystone-ppo"}),
+        networks=frozenset(
+            {"summit-ppo-plus", "keystone-ppo", "summit-value", "keystone-standard"}
+        ),
         contract_rate=0.9,
         fees={"D1110": 105, "D1206": 30, "D2391": 175, "D7140": 195},
         cash_prices={},
@@ -531,7 +655,7 @@ PROVIDERS: tuple[Provider, ...] = (
         lat=35.3070,
         lon=-80.7350,
         credentials=("DMD",),
-        networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic"}),
+        networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic", "summit-value"}),
         contract_rate=0.95,
         fees={
             "D1110": 110,
@@ -661,7 +785,7 @@ PROVIDERS: tuple[Provider, ...] = (
         lat=35.2050,
         lon=-80.7300,
         credentials=("DDS",),
-        networks=frozenset({"harbor-ppo-basic", "keystone-ppo"}),
+        networks=frozenset({"harbor-ppo-basic", "keystone-ppo", "keystone-standard"}),
         contract_rate=0.88,
         fees={
             "D1110": 115,
