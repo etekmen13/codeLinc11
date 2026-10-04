@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   formatDate,
   formatMoney,
@@ -16,6 +16,7 @@ import {
 import { StepNav } from "./StepNav";
 
 interface Props {
+  children?: ReactNode;
   plans: SamplePlan[];
   plan_id?: string;
   subscriber_id: string;
@@ -27,6 +28,7 @@ interface Props {
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export function PlanStep({
+  children,
   plans,
   plan_id,
   subscriber_id,
@@ -58,7 +60,7 @@ export function PlanStep({
             set_touched(false);
           }}
         >
-          <option value="">Choose your insurer</option>
+          <option value="">Choose a demo insurer and plan</option>
           {plans.map(({ plan }) => (
             <option key={plan.id} value={plan.id}>
               {plan.insurer} {plan.plan_name}
@@ -70,7 +72,7 @@ export function PlanStep({
       {sample && (
         <>
           <div className="ob-field">
-            <label htmlFor="ob-subscriber">Subscriber ID</label>
+            <label htmlFor="ob-subscriber">Sample subscriber ID</label>
             <div className="ob-inline">
               <input
                 id="ob-subscriber"
@@ -106,8 +108,8 @@ export function PlanStep({
               className={show_id_error ? "ob-error" : "ob-muted"}
             >
               {show_id_error
-                ? `That doesn't match ${sample.plan.insurer}'s format. It should look like ${sample.plan.subscriber_id_example}.`
-                : `Printed on your insurance card, for example ${sample.plan.subscriber_id_example}.`}
+                ? `That doesn't match this demo plan's sample format. It should look like ${sample.plan.subscriber_id_example}.`
+                : `Mock ID for this demo, for example ${sample.plan.subscriber_id_example}.`}
             </p>
           </div>
 
@@ -150,6 +152,7 @@ export function PlanStep({
         </>
       )}
 
+      {children}
       <StepNav on_back={on_back} on_next={on_next} next_disabled={!id_valid} />
     </>
   );
