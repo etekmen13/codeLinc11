@@ -1,8 +1,7 @@
-from fastapi import FastAPI
-
 import care_plan_api
 import onboarding
 import provider
+from fastapi import FastAPI
 
 app = FastAPI()
 app.include_router(onboarding.router)
