@@ -1,0 +1,358 @@
+.ob {
+ --ob-bg: var(--lf-background); --ob-surface: white; --ob-ink: #222;
+ --ob-muted: #5a5a5a; --ob-line: #d5d5d5; --ob-accent: #650030;
+ --ob-accent-ink: white; --ob-accent-soft: #f7eff3;
+ --ob-urgent: #a32118; --ob-urgent-soft: #fbe9e7;
+ --ob-notice-soft: #fff4dd; --ob-notice-line: #805500;
+}
+.ob {
+  box-sizing: border-box;
+  min-height: auto;
+  width: 100%;
+  padding: 2rem 1rem 4rem;
+  background: var(--ob-bg);
+  color: var(--ob-ink);
+  font-family: var(--lf-body-font);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.ob *,
+.ob *::before,
+.ob *::after {
+  box-sizing: inherit;
+}
+
+.ob-header,
+.ob-panel {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.ob-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Stepper: the steps are a real sequence, so they are numbered. */
+.ob-steps {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem 0.25rem 0.25rem;
+  border-radius: 999px;
+  color: var(--ob-muted);
+  font-size: 0.875rem;
+}
+
+.ob-step-num {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1.5px solid var(--ob-line);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.ob-steps li[data-done] .ob-step-num {
+  border-color: var(--ob-accent);
+  color: var(--ob-accent);
+}
+
+.ob-steps li[aria-current="step"] {
+  background: var(--ob-accent-soft);
+  color: var(--ob-ink);
+}
+
+.ob-steps li[aria-current="step"] .ob-step-num {
+  border-color: var(--ob-accent);
+  background: var(--ob-accent);
+  color: var(--ob-accent-ink);
+}
+
+@media (max-width: 36rem) {
+  .ob-steps li:not([aria-current="step"]) .ob-step-label {
+    display: none;
+  }
+}
+
+.ob-panel {
+  padding: 1.75rem;
+  border: 1px solid var(--ob-line);
+  border-radius: 14px;
+  background: var(--ob-surface);
+}
+
+.ob-panel h1 {
+  margin: 0 0 1.25rem;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ob-panel h1:focus {
+  outline: none;
+}
+
+.ob-urgent {
+  border-color: var(--ob-urgent);
+  border-width: 2px;
+}
+
+.ob-urgent h1 {
+  color: var(--ob-urgent);
+}
+
+.ob-muted {
+  color: var(--ob-muted);
+}
+
+.ob-nowrap {
+  white-space: nowrap;
+}
+
+.ob-error {
+  color: var(--ob-urgent);
+}
+
+.ob-field {
+  margin-bottom: 1.25rem;
+}
+
+.ob-field > label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.ob-field p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.ob select,
+.ob input:not([type="radio"]):not([type="checkbox"]) {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--ob-line);
+  border-radius: 8px;
+  background: var(--ob-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.ob input[aria-invalid="true"] {
+  border-color: var(--ob-urgent);
+}
+
+.ob-inline {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ob-inline input {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.ob-fieldset {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.ob-fieldset legend {
+  margin-bottom: 0.6rem;
+  padding: 0;
+  font-weight: 700;
+}
+
+.ob-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--ob-line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.ob-choice + .ob-choice {
+  margin-top: 0.5rem;
+}
+
+.ob-choice:has(input:checked) {
+  border-color: var(--ob-accent);
+  background: var(--ob-accent-soft);
+}
+
+.ob-choice input {
+  margin-top: 0.3rem;
+  accent-color: var(--ob-accent);
+}
+
+.ob-choice-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.ob-choice-title {
+  font-weight: 700;
+}
+
+.ob-choice-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.ob-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ob-options .ob-choice + .ob-choice {
+  margin-top: 0;
+}
+
+.ob-choice-pill {
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+}
+
+.ob-choice-pill input {
+  margin-top: 0;
+}
+
+.ob-summary {
+  margin: 1.5rem 0 0;
+  border-top: 1px solid var(--ob-line);
+}
+
+.ob-summary > div {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--ob-line);
+}
+
+.ob-summary dt {
+  color: var(--ob-muted);
+}
+
+.ob-summary dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-review {
+  margin-top: 0;
+}
+
+.ob-edit {
+  margin-left: 0.6rem;
+}
+
+@media (max-width: 36rem) {
+  .ob-summary > div {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+.ob-notice {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--ob-notice-line);
+  border-radius: 6px;
+  background: var(--ob-notice-soft);
+}
+
+.ob-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.ob-button,
+.ob-button-secondary {
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ob-button {
+  border: 1.5px solid var(--ob-accent);
+  background: var(--ob-accent);
+  color: var(--ob-accent-ink);
+}
+
+.ob-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ob-button-secondary {
+  border: 1.5px solid var(--ob-line);
+  background: transparent;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.ob-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ob-accent);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ob button:focus-visible,
+.ob select:focus-visible,
+.ob input:focus-visible {
+  outline: 3px solid var(--ob-accent);
+  outline-offset: 2px;
+}
+
+.ob-json {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--ob-bg);
+  font-size: 0.8125rem;
+}
+
+.ob #ob-title { font-family:var(--lf-display-font); color:var(--lf-burgundy); }
+/* Keep native choices and wizard summaries independent of app-wide fields. */
+.shell .ob input[type="radio"], .shell .ob input[type="checkbox"] { width:18px; height:18px; min-height:18px; padding:0; flex-shrink:0; }
+.shell .ob .ob-summary { display:block; }
+.shell .ob label { font-weight:400; }
+.shell .ob .ob-choice { border-radius:4px; }
