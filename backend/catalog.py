@@ -115,6 +115,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 900,
                 "D2740": 950,
                 "D7140": 165,
+                "D6010": 1650,
+                "D6065": 1150,
             },
             out_of_network_allowed={
                 "D1110": 95,
@@ -123,6 +125,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 950,
                 "D2740": 1000,
                 "D7140": 175,
+                "D6010": 1750,
+                "D6065": 1200,
             },
             subscriber_id_pattern=r"SMT-\d{7}",
             subscriber_id_example="SMT-4821937",
@@ -163,6 +167,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 820,
                 "D2740": 870,
                 "D7140": 150,
+                "D6010": 1550,
+                "D6065": 1100,
             },
             out_of_network_allowed={
                 "D1110": 85,
@@ -171,6 +177,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 850,
                 "D2740": 900,
                 "D7140": 160,
+                "D6010": 1650,
+                "D6065": 1150,
             },
             subscriber_id_pattern=r"HB\d{9}",
             subscriber_id_example="HB302118774",
@@ -201,6 +209,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 940,
                 "D2740": 990,
                 "D7140": 170,
+                "D6010": 1700,
+                "D6065": 1200,
             },
             out_of_network_allowed={
                 "D1110": 100,
@@ -209,6 +219,8 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 "D3330": 1000,
                 "D2740": 1050,
                 "D7140": 180,
+                "D6010": 1800,
+                "D6065": 1250,
             },
             subscriber_id_pattern=r"K\d{3}-\d{4}-\d{2}",
             subscriber_id_example="K417-2290-08",
@@ -280,6 +292,25 @@ PROCEDURES: tuple[Procedure, ...] = (
         220,
         "extraction",
     ),
+    Procedure(
+        # Replaces an extracted tooth. Without it, losing the tooth would
+        # look cheaper than saving it.
+        "D6010",
+        "Implant post",
+        "Surgically places a titanium post that replaces the tooth's root.",
+        "major",
+        2200,
+        "extraction",
+    ),
+    Procedure(
+        # Placed on the implant post once it has healed, 3 to 6 months later.
+        "D6065",
+        "Implant crown",
+        "A porcelain crown attached to the implant post.",
+        "major",
+        1500,
+        "extraction",
+    ),
 )
 
 ALL_PLANS = frozenset({"summit-ppo-plus", "harbor-ppo-basic", "keystone-ppo"})
@@ -301,6 +332,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1150,
             "D2740": 1250,
             "D7140": 210,
+            "D6010": 2300,
+            "D6065": 1550,
         },
         cash_prices={
             "D1110": 100,
@@ -309,6 +342,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1000,
             "D2740": 1100,
             "D7140": 180,
+            "D6010": 2000,
+            "D6065": 1350,
         },
     ),
     Provider(
@@ -325,6 +360,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1300,
             "D2740": 1400,
             "D7140": 240,
+            "D6010": 2500,
+            "D6065": 1700,
         },
         cash_prices={},
     ),
@@ -353,6 +390,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1400,
             "D2740": 1500,
             "D7140": 260,
+            "D6010": 2600,
+            "D6065": 1750,
         },
         cash_prices={
             "D1110": 115,
@@ -361,6 +400,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1100,
             "D2740": 1200,
             "D7140": 205,
+            "D6010": 2200,
+            "D6065": 1500,
         },
     ),
     Provider(
@@ -388,6 +429,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1250,
             "D2740": 1350,
             "D7140": 230,
+            "D6010": 2250,
+            "D6065": 1500,
         },
         cash_prices={
             "D1110": 95,
@@ -396,6 +439,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 950,
             "D2740": 1000,
             "D7140": 170,
+            "D6010": 1900,
+            "D6065": 1250,
         },
     ),
     Provider(
@@ -412,6 +457,8 @@ PROVIDERS: tuple[Provider, ...] = (
             "D3330": 1100,
             "D2740": 1200,
             "D7140": 200,
+            "D6010": 2200,
+            "D6065": 1450,
         },
         cash_prices={},
     ),
