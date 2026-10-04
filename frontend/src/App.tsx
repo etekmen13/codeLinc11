@@ -1,259 +1,150 @@
-import { useEffect, useState } from "react";
+// One page, scrolled. State decides which stops exist (narrative/flow.ts);
+// the scroll engine keeps the reader at or before the first unanswered one.
+
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { TrajectoryField } from "./background/TrajectoryField";
+import { AnnualMaxMeter } from "./chrome/AnnualMaxMeter";
+import { Lincoln } from "./lincoln/Lincoln";
+import { ProgressRail } from "./chrome/ProgressRail";
 import {
-  fetch_care_comparison,
-  fetch_care_plan,
-  fetch_providers,
-  problems_of,
-  type OnboardingRequest,
-} from "./api";
-import "./careplan/careplan.css";
-import { CarePlanScreen } from "./careplan/CarePlanScreen";
-import { CompareScreen } from "./careplan/CompareScreen";
-import { Tolerance } from "./careplan/shared";
-import { displayText } from "./lib/displayText";
-import { Onboarding } from "./onboarding/Onboarding";
-import { RiskScreen } from "./screens/RiskScreen";
-import type {
-  CareComparison,
-  CarePlan,
-  OnboardingResult,
-  ProviderCard,
-} from "./types";
+  buildFlow,
+  type Flow,
+  type SectionId,
+  type Stop,
+} from "./narrative/flow";
+import { NarrationOverlay } from "./narrative/NarrationOverlay";
+import { useAdvance } from "./narrative/useAdvance";
+import { ScrollProvider, useScroll } from "./scroll/ScrollProvider";
+import { AcuteTakeover } from "./sections/AcuteTakeover";
+import { CarePlan } from "./sections/CarePlan";
+import { Closing } from "./sections/Closing";
+import { Coverage } from "./sections/Coverage";
+import { Opening } from "./sections/Opening";
+import { Providers } from "./sections/Providers";
+import { Recap } from "./sections/Recap";
+import { SimIntro, SimSummary } from "./sections/Simulation";
+import { riskSpread } from "./state/selectors";
+import { useStore } from "./state/store";
+import { useDataSync } from "./state/useDataSync";
 
 export default function App() {
-  const [screen, setScreen] = useState<
-    "onboarding" | "risk" | "compare" | "plan"
-  >("onboarding");
-  const [onboarding, setOnboarding] = useState<OnboardingResult | null>(null);
-  const [radius, setRadius] = useState(25);
-  const [tolerance, setTolerance] = useState("low");
-  const [providerId, setProviderId] = useState<string | null>(null);
-  const [comparison, setComparison] = useState<CareComparison | null>(null);
-  const [quotes, setQuotes] = useState<ProviderCard[]>([]);
-  const [plan, setPlan] = useState<CarePlan | null>(null);
-  const [compareLoading, setCompareLoading] = useState(false);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [compareError, setCompareError] = useState("");
-  const [planError, setPlanError] = useState("");
-  const [retry, setRetry] = useState(0);
-  const request: OnboardingRequest | null = onboarding
-    ? {
-        plan_id: onboarding.plan.id,
-        subscriber_id: onboarding.member.subscriber_id,
-        procedure_code: onboarding.procedure.cdt_code,
-        quiz_answers: onboarding.quiz_answers,
-      }
-    : null;
-  const requestKey = request ? JSON.stringify(request) : null;
-  useEffect(() => {
-    if (!requestKey) return;
-    let cancelled = false;
-    setCompareLoading(true);
-    setCompareError("");
-    const base = JSON.parse(requestKey) as OnboardingRequest;
-    void Promise.all([
-      fetch_care_comparison({
-        ...base,
-        radius_miles: radius,
-        risk_tolerance: tolerance,
-      }),
-      fetch_providers({ ...base, radius_miles: radius }),
-    ])
-      .then(([comparison, prices]) => {
-        if (!cancelled) {
-          setComparison(comparison);
-          setQuotes([...prices.in_network, ...prices.out_of_network]);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) setCompareError(problems_of(error).join(" "));
-      })
-      .finally(() => {
-        if (!cancelled) setCompareLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [requestKey, radius, tolerance, retry]);
-  useEffect(() => {
-    if (!requestKey || !providerId) return;
-    let cancelled = false;
-    setPlanLoading(true);
-    setPlanError("");
-    void fetch_care_plan({
-      ...JSON.parse(requestKey),
-      provider_id: providerId,
-      risk_tolerance: tolerance,
-    })
-      .then((value) => {
-        if (!cancelled) setPlan(value);
-      })
-      .catch((error) => {
-        if (!cancelled) setPlanError(problems_of(error).join(" "));
-      })
-      .finally(() => {
-        if (!cancelled) setPlanLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [requestKey, providerId, tolerance, retry]);
-  const bands = comparison?.risk_bands ?? [
-    { name: "low", upper: 0.1 },
-    { name: "medium", upper: 0.25 },
-    { name: "high", upper: null },
-  ];
+  useDataSync();
+  const state = useStore();
+  const flow = useMemo(() => buildFlow(state), [state]);
+  const acute = state.answers.acute === "yes";
+  const layoutKey = [
+    ...flow.stops.map((s) => s.id),
+    state.comparison.key,
+    state.carePlan.key,
+  ].join("|");
+  // Leaving a stop ends its reaction.
+  const onStopChange = useCallback((id: string) => {
+    const { reaction, patch } = useStore.getState();
+    patch({
+      currentStopId: id,
+      reaction: reaction?.stopId === id ? reaction : null,
+    });
+  }, []);
   return (
-    <div className="shell cp-shell">
-      <aside>
-        <a
-          href="#"
-          className="brand"
-          onClick={(e) => {
-            e.preventDefault();
-            setScreen("onboarding");
-          }}
-        >
-          ✦ ClearCare
-        </a>
-        <p>
-          Your dental benefits,
-          <br />
-          made clear.
-        </p>
-        <nav aria-label="Main navigation">
-          {[
-            { id: "onboarding", label: "Your details" },
-            { id: "risk", label: "Tooth risk" },
-            { id: "compare", label: "Compare providers" },
-            { id: "plan", label: "Care plan" },
-          ].map((item, i) => (
-            <button
-              key={item.id}
-              className={screen === item.id ? "active" : ""}
-              aria-current={screen === item.id ? "page" : undefined}
-              disabled={item.id !== "onboarding" && !onboarding}
-              onClick={() => setScreen(item.id as typeof screen)}
-            >
-              <span>{i + 1}</span>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <strong>Interactive demo</strong>
-          <p>Sample providers, benefits and transition rates.</p>
-        </div>
-      </aside>
-      <main>
-        <header>
-          <span>DENTAL BENEFITS OPTIMIZER</span>
-          <span className="badge">Sample data</span>
-        </header>
-        <div hidden={screen !== "onboarding"}>
-          <Onboarding
-            on_complete={(value) => {
-              setOnboarding(value);
-              setProviderId(null);
-              setPlan(null);
-              setTolerance("low");
-              setScreen("risk");
-            }}
-          />
-        </div>
-        {screen === "risk" && request && (
-          <RiskScreen request={request} on_next={() => setScreen("compare")} />
-        )}
-        {(screen === "compare" || screen === "plan") && onboarding && (
-          <>
-            <div className="cp-controls">
-              <Tolerance
-                bands={bands}
-                value={tolerance}
-                onChange={setTolerance}
+    <ScrollProvider
+      gateId={acute ? null : flow.gateId}
+      layoutKey={layoutKey}
+      onStopChange={onStopChange}
+    >
+      <Page flow={flow} acute={acute} />
+    </ScrollProvider>
+  );
+}
+
+function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
+  useAdvance(flow);
+  useScrollTarget(flow);
+  const spread = useStore(riskSpread);
+  const currentId = useStore((s) => s.currentStopId);
+  const currentIndex = flow.stops.findIndex((s) => s.id === currentId);
+
+  // Consecutive stops of one section share a <section>.
+  const groups: { id: SectionId; stops: Stop[] }[] = [];
+  for (const stop of flow.stops) {
+    const last = groups[groups.length - 1];
+    if (last?.id === stop.section) last.stops.push(stop);
+    else groups.push({ id: stop.section, stops: [stop] });
+  }
+
+  return (
+    <>
+      <TrajectoryField spread={spread} />
+      <main className="page" aria-hidden={acute || undefined} inert={acute}>
+        {groups.map((g) => (
+          <SectionView key={g.id} id={g.id}>
+            {g.stops.map((stop) => (
+              <StopView
+                key={stop.id}
+                stop={stop}
+                reached={flow.stops.indexOf(stop) <= currentIndex}
               />
-              {screen === "compare" && (
-                <label>
-                  Search radius
-                  <select
-                    value={radius}
-                    onChange={(e) => setRadius(Number(e.target.value))}
-                  >
-                    <option value={5}>5 miles</option>
-                    <option value={10}>10 miles</option>
-                    <option value={25}>25 miles</option>
-                    <option value={50}>50 miles</option>
-                  </select>
-                </label>
-              )}
-            </div>
-            {screen === "compare" ? (
-              <>
-                <h1>Compare the cost of your care.</h1>
-                <p>{displayText(onboarding.procedure.name)}</p>
-                {compareLoading ? (
-                  <div className="card" role="status">
-                    Pricing schedules and simulated futures…
-                  </div>
-                ) : compareError ? (
-                  <div className="card" role="alert">
-                    <p>{displayText(compareError)}</p>
-                    <button onClick={() => setRetry((r) => r + 1)}>
-                      Retry comparison
-                    </button>
-                  </div>
-                ) : (
-                  comparison && (
-                    <CompareScreen
-                      data={comparison}
-                      today={quotes}
-                      onSelect={(id) => {
-                        setProviderId(id);
-                        setScreen("plan");
-                      }}
-                    />
-                  )
-                )}
-              </>
-            ) : !providerId ? (
-              <div className="card">
-                <h1>Your care plan</h1>
-                <p>Select a provider to view its schedules.</p>
-                <button
-                  className="primary"
-                  onClick={() => setScreen("compare")}
-                >
-                  Compare providers
-                </button>
-              </div>
-            ) : planLoading || compareLoading ? (
-              <div className="card" role="status">
-                Loading your care plan…
-              </div>
-            ) : planError || compareError ? (
-              <div className="card" role="alert">
-                <p>{displayText(planError || compareError)}</p>
-                <button onClick={() => setRetry((r) => r + 1)}>
-                  Retry care plan
-                </button>
-              </div>
-            ) : (
-              plan && (
-                <CarePlanScreen
-                  key={`${providerId}-${requestKey}-${tolerance}`}
-                  data={plan}
-                  onboarding={onboarding}
-                  provider={quotes.find((p) => p.id === providerId)}
-                />
-              )
-            )}
-          </>
-        )}
-        <footer>
-          Informational estimates · Actual fees, benefits and clinical timing
-          require confirmation.
-        </footer>
+            ))}
+          </SectionView>
+        ))}
+        {flow.gateId && <div className="runway" aria-hidden="true" />}
       </main>
+      {!acute && (
+        <>
+          <NarrationOverlay stops={flow.stops} hidden={false} />
+          <ProgressRail stops={flow.stops} />
+          <AnnualMaxMeter />
+        </>
+      )}
+      {acute && <AcuteTakeover />}
+      <Lincoln stops={flow.stops} acute={acute} />
+    </>
+  );
+}
+
+function SectionView({ id, children }: { id: SectionId; children: ReactNode }) {
+  const { registerSection } = useScroll();
+  const ref = useCallback(
+    (el: HTMLElement | null) => registerSection(id, el),
+    [id, registerSection],
+  );
+  return (
+    <section ref={ref} className={`section section--${id}`} data-section={id}>
+      {children}
+    </section>
+  );
+}
+
+function StopView({ stop, reached }: { stop: Stop; reached: boolean }) {
+  const { registerStop } = useScroll();
+  const ref = useCallback(
+    (el: HTMLDivElement | null) => registerStop(stop.id, el),
+    [stop.id, registerStop],
+  );
+  return (
+    <div ref={ref} className={`stop stop--${stop.kind}`} data-stop={stop.id}>
+      {stop.id === "intro" && <Opening />}
+      {stop.kind === "coverage" && <Coverage />}
+      {stop.kind === "recap" && <Recap />}
+      {stop.kind === "sim_intro" && <SimIntro reached={reached} />}
+      {stop.kind === "sim_summary" && <SimSummary />}
+      {stop.kind === "providers" && <Providers />}
+      {stop.kind === "careplan" && <CarePlan />}
+      {stop.kind === "closing" && <Closing />}
     </div>
   );
+}
+
+// Scrolls to store.scrollTarget once that stop exists (demo fill, restart).
+function useScrollTarget(flow: Flow) {
+  const { scrollToStop } = useScroll();
+  const target = useStore((s) => s.scrollTarget);
+  const present = !!target && flow.stops.some((s) => s.id === target);
+  useEffect(() => {
+    if (!target || !present) return;
+    const id = requestAnimationFrame(() => {
+      scrollToStop(target, target === "intro");
+      useStore.getState().patch({ scrollTarget: null });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [target, present, scrollToStop]);
 }

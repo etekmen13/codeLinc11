@@ -109,3 +109,13 @@ def test_endpoint_rejects_date_before_member_history():
     # Keystone's member has a filling on 2026-05-06.
     res = client.post("/api/providers", json=body(date_of_service="2026-04-01"))
     assert res.status_code == 422
+
+
+def test_nearby_providers_are_unpriced_and_nearest_first():
+    res = TestClient(main.app).get("/api/providers/nearby?limit=3")
+    assert res.status_code == 200
+    rows = res.json()
+    assert 0 < len(rows) <= 3
+    assert set(rows[0]) == {"id", "name", "distance_miles", "credentials"}
+    distances = [r["distance_miles"] for r in rows]
+    assert distances == sorted(distances)

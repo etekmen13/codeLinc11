@@ -26,6 +26,8 @@ type Props = {
   totalFutures?: number; // shown in the counter; defaults to the number drawn
   laneSpacing?: number; // px between states on the y axis
   durationMs?: number; // length of the whole animation (default 7000)
+  replay?: number; // bump to replay from outside
+  showReplay?: boolean; // the built-in Replay button (default true)
 };
 
 type Layout = {
@@ -76,6 +78,8 @@ export default function MonteCarloPaper({
   totalFutures,
   laneSpacing = 64,
   durationMs = DEFAULT_MS,
+  replay = 0,
+  showReplay = true,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -214,6 +218,7 @@ export default function MonteCarloPaper({
     return () => cancelAnimationFrame(raf);
   }, [
     run,
+    replay,
     paths,
     pts,
     worse,
@@ -295,7 +300,9 @@ export default function MonteCarloPaper({
           padding: "6px 16px 12px",
         }}
       >
-        <button onClick={() => setRun((r) => r + 1)}>Replay</button>
+        {showReplay && (
+          <button onClick={() => setRun((r) => r + 1)}>Replay</button>
+        )}
         <input
           type="range"
           min={0}

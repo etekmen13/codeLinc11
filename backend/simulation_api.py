@@ -24,7 +24,7 @@ from sequencer import simulations
 
 # Futures sent whole, for drawing individual paths. Futures are independent
 # draws, so the first ones are a random sample.
-N_SAMPLE_PATHS = 100
+N_SAMPLE_PATHS = 300
 
 
 # Response model. Field names match frontend/src/types.ts.

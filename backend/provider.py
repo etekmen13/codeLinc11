@@ -7,8 +7,9 @@ periods, and frequency limits, and reports a cash price where there is one.
 
 Main entry: find_providers(procedure_code, plan, member, ...)
 
-Endpoint:
-  POST /api/providers   OnboardingRequest plus filters -> ProvidersOut
+Endpoints:
+  POST /api/providers          OnboardingRequest plus filters -> ProvidersOut
+  GET  /api/providers/nearby   closest dentists, unpriced -> list[NearbyProvider]
 
 Like onboarding, the backend keeps no session: the request carries the
 onboarding answers and is validated with validate_onboarding.
@@ -17,7 +18,7 @@ onboarding answers and is validated with validate_onboarding.
 import math
 from datetime import date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 import cost
@@ -171,3 +172,39 @@ def post_providers(req: ProvidersRequest) -> ProvidersOut:
         )
     except ValueError as e:  # e.g. a date before the member's history
         raise HTTPException(422, [str(e)]) from e
+
+
+class NearbyProvider(BaseModel):
+    id: str
+    name: str
+    distance_miles: float
+    credentials: list[str]
+
+
+def nearby_providers(
+    radius_miles: float = 25.0,
+    limit: int = 5,
+    providers: tuple[Provider, ...] = PROVIDERS,
+    user_location: tuple[float, float] = EXAMPLE_USER_LOCATION,
+) -> list[NearbyProvider]:
+    """The closest dentists, nearest first, with no pricing. For the urgent
+    symptom screen, which comes before the member has entered a plan."""
+    found = [
+        NearbyProvider(
+            id=d.id,
+            name=d.name,
+            distance_miles=round(distance_miles(user_location, (d.lat, d.lon)), 1),
+            credentials=list(d.credentials),
+        )
+        for d in providers
+    ]
+    found = [p for p in found if p.distance_miles <= radius_miles]
+    found.sort(key=lambda p: p.distance_miles)
+    return found[:limit]
+
+
+@router.get("/providers/nearby")
+def get_nearby_providers(
+    radius_miles: float = Query(25.0, gt=0), limit: int = Query(5, gt=0, le=50)
+) -> list[NearbyProvider]:
+    return nearby_providers(radius_miles, limit)

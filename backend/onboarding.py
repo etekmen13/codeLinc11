@@ -171,6 +171,7 @@ class FormOut(BaseModel):
 class OptionOut(BaseModel):
     id: str
     label: str
+    effect: str  # "lowers", "raises" or "neutral": direction of risk
 
 
 class QuestionOut(BaseModel):
@@ -215,7 +216,10 @@ def get_quiz(procedure: str) -> list[QuestionOut]:
         QuestionOut(
             id=q.id,
             prompt=q.prompt,
-            options=[OptionOut(id=o.id, label=o.label) for o in q.options],
+            options=[
+                OptionOut(id=o.id, label=o.label, effect=quiz.effect(o))
+                for o in q.options
+            ],
         )
         for q in quiz.questions_for(proc.treats_state)
     ]

@@ -159,6 +159,26 @@ LOG_MIN = np.log(0.25)
 LOG_MAX = np.log(4.0)
 
 
+# Edges that move the tooth toward health. A factor above 1 on these lowers
+# risk; on every other edge it raises risk.
+PROTECTIVE_EDGES: frozenset[Edge] = frozenset({LESION_TO_HEALTHY})
+
+
+def effect(option: Option) -> str:
+    """Whether an answer "lowers", "raises", or is "neutral" to the risk of
+    the tooth getting worse. Shown to the user only as tone (the narrator's
+    reaction), never as a number."""
+    score = sum(
+        -np.log(f) if e in PROTECTIVE_EDGES else np.log(f)
+        for e, f in option.factors.items()
+    )
+    if score > 1e-9:
+        return "raises"
+    if score < -1e-9:
+        return "lowers"
+    return "neutral"
+
+
 def questions_for(state: str) -> list[Question]:
     return [q for q in QUESTIONS if q.applies_to is None or state in q.applies_to]
 
