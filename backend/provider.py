@@ -97,36 +97,62 @@ def plan_rules_at(plan, month):
     return plan["deductible_new"], plan["annual_max_new"]
 
 
+NUMERIC_FIELDS = (
+    "provider_fee",
+    "deductible_applied",
+    "plan_pays",
+    "you_pay",
+    "balance_billing",
+    "annual_maximum_remaining",
+)
+
+
 def price(procedure, provider, plan, month=0):
     """What one procedure costs at one provider, if done at `month`."""
-    if procedure is None:  # state needs no treatment
-        return {"fee": 0.0, "plan_pays": 0.0, "you_pay": 0.0, "balance_bill": 0.0}
-    fee = float(provider["fees"][procedure])
-    if provider["in_network"]:
-        counted = fee
-    else:  # plan only counts up to its allowed amount; you owe the rest
-        counted = min(fee, float(plan["allowed_amounts"][procedure]))
-    c = plan["coinsurance"][plan["category"][procedure]]
     deductible, annual_max = plan_rules_at(plan, month)
-    plan_pays = min(c * max(counted - deductible, 0.0), annual_max)
+    if procedure is None:  # state needs no treatment
+        fee = counted = deductible_applied = plan_pays = 0.0
+    else:
+        fee = float(provider["fees"][procedure])
+        if provider["in_network"]:
+            counted = fee
+        else:  # plan only counts up to its allowed amount; you owe the rest
+            counted = min(fee, float(plan["allowed_amounts"][procedure]))
+        c = plan["coinsurance"][plan["category"][procedure]]
+        deductible_applied = min(float(deductible), counted)
+        plan_pays = min(c * (counted - deductible_applied), float(annual_max))
     return {
-        "fee": fee,
+        "procedure": procedure,
+        "provider": provider["name"],
+        "in_network": provider["in_network"],
+        "provider_fee": fee,
+        "deductible_applied": deductible_applied,
         "plan_pays": plan_pays,
         "you_pay": fee - plan_pays,
-        "balance_bill": fee - counted,
+        "balance_billing": fee - counted,
+        "annual_maximum_remaining": float(annual_max) - plan_pays,
     }
 
 
 def expected_price(dist_t, state_procedure, provider, plan, month):
-    """Probability-weighted price over the states the tooth could be in at `month`."""
-    out = {"fee": 0.0, "plan_pays": 0.0, "you_pay": 0.0, "balance_bill": 0.0}
+    """Probability-weighted price over the states the tooth could be in at `month`.
+
+    Same fields as price(); money fields are probability-weighted averages and
+    `procedure` is the procedure for the most likely state.
+    """
+    out = dict.fromkeys(NUMERIC_FIELDS, 0.0)
     for s, p_s in enumerate(dist_t):
         if p_s == 0:
             continue
         cost = price(state_procedure[s], provider, plan, month)
-        for k in out:
-            out[k] += p_s * cost[k]
-    return out
+        for k in NUMERIC_FIELDS:
+            out[k] += float(p_s) * cost[k]
+    return {
+        "procedure": state_procedure[int(np.argmax(dist_t))],
+        "provider": provider["name"],
+        "in_network": provider["in_network"],
+        **out,
+    }
 
 
 def needed_procedures(dist, state_procedure):
@@ -193,7 +219,7 @@ def compare_providers(
             "distance_miles": round(miles, 1),
             "credentials": d["credentials"],
             "in_network": d["in_network"],
-            "now": now,  # fee, plan_pays, you_pay, balance_bill if treated today
+            "now": now,  # cost breakdown if treated today
             "wait_month": wait_month,
             "if_you_wait": later,  # same, expected, if treated at wait_month
             "savings_if_you_wait": now["you_pay"] - later["you_pay"],
