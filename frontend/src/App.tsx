@@ -60,6 +60,12 @@ function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
   useAdvance(flow);
   useScrollTarget(flow);
   const spread = useStore(riskSpread);
+  // The maroon stage fully covers the field while the futures play.
+  const staged = useStore(
+    (s) =>
+      s.currentStopId === "sim_intro" &&
+      (s.simStage === "playing" || s.simStage === "done"),
+  );
 
   // Consecutive stops of one section share a <section>.
   const groups: { id: SectionId; stops: Stop[] }[] = [];
@@ -71,7 +77,7 @@ function Page({ flow, acute }: { flow: Flow; acute: boolean }) {
 
   return (
     <>
-      <TrajectoryField spread={spread} />
+      <TrajectoryField spread={spread} paused={staged} />
       <main className="page" aria-hidden={acute || undefined} inert={acute}>
         {groups.map((g) => (
           <SectionView key={g.id} id={g.id}>

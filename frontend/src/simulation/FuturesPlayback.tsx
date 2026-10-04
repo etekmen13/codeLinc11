@@ -1,9 +1,10 @@
-// The futures, drawn one at a time in white on the maroon stage. The canvas
-// is transparent; finished paths rest on an offscreen layer at low opacity,
-// so where many futures overlap the band glows brighter. Only the active
-// path and the short trail of recent ones are drawn live, so each frame
-// costs about the same. A histogram at the right grows as futures land.
-// State labels and the time axis are HTML, so they use the page's fonts.
+// The futures, drawn one at a time in white on the maroon stage. Two
+// transparent canvases: the resting layer below holds every landed path at
+// low opacity, so where many futures overlap the band glows brighter; the
+// live layer above holds the paths being drawn, the fading trail of recent
+// ones, and the histogram, which grows as futures land. Each landed path is
+// stroked once per layer, so frames stay cheap as the rate climbs. State
+// labels and the time axis are HTML, so they use the page's fonts.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { easeFn, prefersReducedMotion } from "../motion/config";
@@ -30,6 +31,13 @@ interface Layout {
   laneH: number;
 }
 
+// An offscreen layer of the trail: the paths that landed in one window.
+interface Trail {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  end: number; // when its window closes and it starts to fade
+}
+
 const white = (a: number) => `rgba(255, 255, 255, ${a})`;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -41,7 +49,8 @@ export function FuturesPlayback({
   onDone,
 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const base = useRef<HTMLCanvasElement>(null);
+  const live = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const onDoneRef = useRef(onDone);
   useEffect(() => {
@@ -99,6 +108,17 @@ export function FuturesPlayback({
     );
   }, [fine, layout, months]);
 
+  // The same futures as cached shapes, for stroking whole paths.
+  const shapes = useMemo(
+    () =>
+      pts.map((p) => {
+        const s = new Path2D();
+        p.forEach(([x, y], j) => (j ? s.lineTo(x, y) : s.moveTo(x, y)));
+        return s;
+      }),
+    [pts],
+  );
+
   // Where each future ends up; the largest share fills the bar width.
   const ends = useMemo(() => paths.map((p) => p[months]), [paths, months]);
   const finalShares = useMemo(() => {
@@ -108,29 +128,36 @@ export function FuturesPlayback({
   }, [ends, states.length]);
 
   useEffect(() => {
-    const cv = canvas.current;
-    if (!cv || !layout) return;
-    const ctx = setup(cv, layout.w, layout.h);
+    const baseCv = base.current;
+    const liveCv = live.current;
+    if (!baseCv || !liveCv || !layout) return;
+    const { w, h } = layout;
+    const bctx = setup(baseCv, w, h);
+    const lctx = setup(liveCv, w, h);
     const scale = layout.barMax / Math.max(...finalShares, 1e-6);
 
     const drawBars = (shares: number[]) => {
-      ctx.fillStyle = white(P.barAlpha);
+      lctx.fillStyle = white(P.barAlpha);
       const t = layout.laneH * P.barThickness;
       shares.forEach((v, s) => {
         if (v <= 0) return;
         const y = (s + 0.5) * layout.laneH;
-        ctx.fillRect(layout.barX, y - t / 2, v * scale, t);
+        lctx.fillRect(layout.barX, y - t / 2, v * scale, t);
       });
     };
-    const restStroke = (c: CanvasRenderingContext2D) => {
-      c.strokeStyle = white(P.restAlpha);
-      c.lineWidth = P.restWidth;
+    const pen = (c: CanvasRenderingContext2D, alpha: number, width: number) => {
+      c.strokeStyle = white(alpha);
+      c.lineWidth = width;
       c.lineJoin = "round";
     };
+    const clear = () => {
+      bctx.clearRect(0, 0, w, h);
+      lctx.clearRect(0, 0, w, h);
+    };
     const drawFinal = () => {
-      ctx.clearRect(0, 0, layout.w, layout.h);
-      restStroke(ctx);
-      for (const p of pts) partialPolyline(ctx, p, 1);
+      clear();
+      pen(bctx, P.restAlpha, P.restWidth);
+      for (const s of shapes) bctx.stroke(s);
       drawBars(finalShares);
     };
 
@@ -140,7 +167,7 @@ export function FuturesPlayback({
     }
     // A fresh run starts on an empty stage. Going idle leaves the picture
     // as it is, so it fades out with the stage.
-    if (phase === "dark") ctx.clearRect(0, 0, layout.w, layout.h);
+    if (phase === "dark") clear();
     if (phase !== "playing") return;
     if (prefersReducedMotion()) {
       drawFinal();
@@ -159,58 +186,76 @@ export function FuturesPlayback({
     const start = new Array<number>(N);
     for (let i = 0, t = 0; i < N; t += dur[i], i++) start[i] = t;
 
-    const accum = document.createElement("canvas");
-    const actx = setup(accum, layout.w, layout.h);
-    restStroke(actx);
+    // The trail. A landed path goes onto the resting layer at once, and in
+    // full white onto the trail layer of the window it landed in. Each trail
+    // layer fades as a whole once its window closes, so a frame costs the
+    // same however many paths are fading. Spent layers are reused.
+    const windowMs = P.trailMs / P.trailSteps;
+    const trails: Trail[] = [];
+    const spare: Trail[] = [];
+    const trailAt = (el: number): Trail => {
+      const open = trails[trails.length - 1];
+      if (open && el < open.end) return open;
+      let t = spare.pop();
+      if (!t) {
+        const canvas = document.createElement("canvas");
+        t = { canvas, ctx: setup(canvas, w, h), end: 0 };
+      }
+      t.ctx.clearRect(0, 0, w, h);
+      pen(t.ctx, 1, P.activeWidth);
+      t.end = el + windowMs;
+      trails.push(t);
+      return t;
+    };
+
+    clear();
+    pen(bctx, P.restAlpha, P.restWidth);
     const counts = new Array(states.length).fill(0);
     const shown = new Array(states.length).fill(0);
-    let committed = 0; // paths resting on the accumulation layer
-    let landed = 0; // paths fully drawn (counted in the histogram)
+    let landed = 0;
     let raf = 0;
     const t0 = performance.now();
 
     const frame = (now: number) => {
       const el = now - t0;
-      while (
-        committed < N &&
-        start[committed] + dur[committed] + P.trailMs <= el
-      )
-        partialPolyline(actx, pts[committed++], 1);
-      while (landed < N && start[landed] + dur[landed] <= el)
-        counts[ends[landed++]]++;
-
-      ctx.clearRect(0, 0, layout.w, layout.h);
-      ctx.drawImage(accum, 0, 0, layout.w, layout.h);
-      ctx.lineJoin = "round";
-      for (let i = committed; i < N && start[i] <= el; i++) {
-        const p = (el - start[i]) / dur[i];
-        if (p < 1) {
-          const glow = dur[i] > P.glowSlowerThanMs;
-          ctx.save();
-          if (glow) {
-            ctx.shadowColor = white(0.8);
-            ctx.shadowBlur = P.glowBlur;
-          }
-          ctx.strokeStyle = white(1);
-          ctx.lineWidth = P.activeWidth;
-          partialPolyline(ctx, pts[i], p);
-          if (glow) {
-            const [hx, hy] = pointAt(pts[i], p);
-            ctx.fillStyle = white(1);
-            ctx.beginPath();
-            ctx.arc(hx, hy, P.headRadius, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.restore();
-        } else {
-          const f = easeFn(Math.min(1, (el - start[i] - dur[i]) / P.trailMs));
-          ctx.strokeStyle = white(lerp(1, P.restAlpha, f));
-          ctx.lineWidth = lerp(P.activeWidth, P.restWidth, f);
-          partialPolyline(ctx, pts[i], 1);
-        }
+      while (landed < N && start[landed] + dur[landed] <= el) {
+        const i = landed++;
+        counts[ends[i]]++;
+        bctx.stroke(shapes[i]);
+        trailAt(el).ctx.stroke(shapes[i]);
       }
 
-      let settled = landed === N;
+      lctx.clearRect(0, 0, w, h);
+      while (trails.length && el - trails[0].end >= P.trailMs)
+        spare.push(trails.shift()!);
+      for (const t of trails) {
+        lctx.globalAlpha = 1 - easeFn(Math.max(0, (el - t.end) / P.trailMs));
+        lctx.drawImage(t.canvas, 0, 0, w, h);
+      }
+      lctx.globalAlpha = 1;
+
+      // The paths still being drawn; the slow early ones glow.
+      for (let i = landed; i < N && start[i] <= el; i++) {
+        const p = (el - start[i]) / dur[i];
+        const glow = dur[i] > P.glowSlowerThanMs;
+        lctx.save();
+        if (glow) {
+          lctx.shadowColor = white(0.8);
+          lctx.shadowBlur = P.glowBlur;
+        }
+        pen(lctx, 1, P.activeWidth);
+        partialPolyline(lctx, pts[i], p);
+        if (glow) {
+          const [hx, hy] = pointAt(pts[i], p);
+          lctx.fillStyle = white(1);
+          lctx.beginPath();
+          lctx.arc(hx, hy, P.headRadius, 0, Math.PI * 2);
+          lctx.fill();
+        }
+        lctx.restore();
+      }
+
+      let settled = landed === N && trails.length === 0;
       for (let s = 0; s < shown.length; s++) {
         const target = counts[s] / N;
         shown[s] += (target - shown[s]) * P.barEase;
@@ -218,12 +263,12 @@ export function FuturesPlayback({
       }
       drawBars(shown);
 
-      if (committed === N && settled) onDoneRef.current();
+      if (settled) onDoneRef.current();
       else raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [phase, runId, layout, pts, ends, finalShares, states.length]);
+  }, [phase, runId, layout, pts, shapes, ends, finalShares, states.length]);
 
   const ticks: number[] = [];
   for (let t = 0; t <= months; t += P.tickEveryMonths) ticks.push(t);
@@ -238,8 +283,13 @@ export function FuturesPlayback({
       aria-hidden="true"
     >
       <canvas
-        ref={canvas}
+        ref={base}
         className="futures__canvas"
+        style={{ height: layout?.h }}
+      />
+      <canvas
+        ref={live}
+        className="futures__canvas futures__canvas--live"
         style={{ height: layout?.h }}
       />
       {layout && (

@@ -584,6 +584,11 @@ h3 {
   display: block;
   width: 100%;
 }
+.futures__canvas--live {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
 .futures__state,
 .futures__axis {
   opacity: 0;

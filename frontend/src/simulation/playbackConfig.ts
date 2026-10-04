@@ -27,6 +27,9 @@ export const playback = {
   // Resting paths are translucent white, so where many futures overlap the
   // band glows brighter.
   trailMs: 450,
+  // Paths landing within trailMs / trailSteps of each other share one
+  // fading layer. More steps: a smoother fade, but more layers per frame.
+  trailSteps: 6,
   restAlpha: 0.1,
   activeWidth: 1.8,
   restWidth: 1.2,
