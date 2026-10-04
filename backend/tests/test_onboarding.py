@@ -34,3 +34,16 @@ def test_response_carries_as_of_and_fsa():
     assert member["as_of"] == KEYSTONE.default_member.as_of
     assert member["fsa"]["balance"] == 400
     assert member["fsa"]["grace_period_end"] is None
+
+
+def test_quiz_options_carry_risk_direction():
+    res = TestClient(main.app).get("/api/quiz?procedure=D3330")
+    assert res.status_code == 200
+    effects = {
+        (q["id"], o["id"]): o["effect"] for q in res.json() for o in q["options"]
+    }
+    assert effects[("sugar", "rarely")] == "lowers"
+    assert effects[("sugar", "daily")] == "neutral"
+    assert effects[("sugar", "often")] == "raises"
+    assert effects[("brushing", "twice")] == "lowers"
+    assert set(effects.values()) <= {"lowers", "raises", "neutral"}
