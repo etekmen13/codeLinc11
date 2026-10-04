@@ -113,10 +113,7 @@ export function CarePlanScreen({
     <div className="cp-plan">
       <div className="cp-heading">
         <div>
-          <p className="cp-eyebrow">
-            {onboarding.procedure.cdt_code} ·{" "}
-            {provider?.name ?? data.provider_id}
-          </p>
+          <p className="cp-eyebrow">{provider?.name ?? data.provider_id}</p>
           <h1>Your care plan options.</h1>
         </div>
         <span className="cp-badge network">{data.tolerance} tolerance</span>
@@ -296,7 +293,7 @@ export function CarePlanScreen({
                       {percent(outcome.probability)} ·{" "}
                       {outcome.visit.tooth_state.replaceAll("_", " ")} ·{" "}
                       {outcome.visit.lines
-                        .map((l) => `${l.procedure_name} (${l.cdt_code})`)
+                        .map((l) => l.procedure_name)
                         .join(", ") || "No treatment line"}{" "}
                       · patient share {money(outcome.visit.you_pay)}
                     </p>
