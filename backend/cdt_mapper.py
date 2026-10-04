@@ -7,6 +7,7 @@ from typing import Literal
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ValidationError
+
 from care_plan import bedrock_client
 
 router = APIRouter(prefix="/api/cdt", tags=["cdt"])

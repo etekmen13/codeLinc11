@@ -5,6 +5,7 @@ import json
 import re
 from datetime import date, datetime
 from pathlib import Path
+
 import openpyxl
 
 
@@ -21,7 +22,8 @@ def as_date(value):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("xlsx", type=Path)
-    parser.add_argument("--as-of", default=date.today().isoformat())
+    # The date the catalog is built for; an offline tool, not the app's as_of.
+    parser.add_argument("--as-of", default=date.today().isoformat())  # noqa: DTZ011
     args = parser.parse_args()
     on = date.fromisoformat(args.as_of)
     workbook = openpyxl.load_workbook(args.xlsx, read_only=True, data_only=True)
