@@ -33,6 +33,17 @@ export interface PastService {
   date_of_service: string; // ISO date
 }
 
+// Health flexible spending account: pre-tax money for the member's share.
+// Separate from the dental plan, so it never changes what the plan pays.
+export interface Fsa {
+  balance: number; // unspent this FSA year, as of the member's as_of
+  year_end: string; // ISO date, last day of this FSA year
+  grace_period_end: string | null; // ISO date; a plan has this or carryover
+  carryover_limit: number; // unspent dollars kept for next year; 0 = none
+  election_limit: number; // most the member can elect for a year
+  marginal_tax_rate: number; // what a pre-tax dollar saves
+}
+
 export interface MemberStatus {
   subscriber_id: string;
   as_of: string; // ISO date the balances describe; the backend's "today"
@@ -40,6 +51,7 @@ export interface MemberStatus {
   amount_used: number; // this plan year
   deductible_met: number; // this plan year
   past_services: PastService[]; // oldest first; frequency limits count these
+  fsa: Fsa | null; // null if the employer offers no FSA
 }
 
 export interface Procedure {

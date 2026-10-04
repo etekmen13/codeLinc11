@@ -27,8 +27,10 @@ def test_as_of_comes_from_the_sample_member():
     assert o.as_of == date.fromisoformat(KEYSTONE.default_member.as_of)
 
 
-def test_response_carries_as_of():
+def test_response_carries_as_of_and_fsa():
     res = TestClient(main.app).post("/api/onboarding", json=request().model_dump())
     assert res.status_code == 200
     member = res.json()["member"]
     assert member["as_of"] == KEYSTONE.default_member.as_of
+    assert member["fsa"]["balance"] == 400
+    assert member["fsa"]["grace_period_end"] is None

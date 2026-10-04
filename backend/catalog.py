@@ -49,6 +49,24 @@ class PastService:
 
 
 @dataclass(frozen=True)
+class Fsa:
+    """A health flexible spending account: pre-tax money for the member's
+    share of dental costs. It is an employer benefit separate from the dental
+    plan, so it never changes what the plan pays. Next FSA year is assumed to
+    have the same rules. Toy values."""
+
+    balance: float  # unspent this FSA year, as of the member's as_of
+    year_end: str  # ISO date; last day of this FSA year
+    # Expenses up to this ISO date can still use this year's balance. A plan
+    # offers a grace period or a carryover, not both.
+    grace_period_end: str | None
+    carryover_limit: float  # unspent dollars kept for next year; 0 = none
+    election_limit: float  # most the member can elect for a year
+    # Combined federal, state, and payroll rate: what a pre-tax dollar saves.
+    marginal_tax_rate: float
+
+
+@dataclass(frozen=True)
 class MemberStatus:
     """Per-employee state. In v0 each sample plan ships with a default member;
     a real system would look this up by subscriber ID."""
@@ -63,6 +81,7 @@ class MemberStatus:
     # apart from amount_used, which also covers exams, X-rays, and other
     # services outside this catalog.
     past_services: tuple[PastService, ...] = ()
+    fsa: Fsa | None = None  # None if the employer offers no FSA
 
 
 @dataclass(frozen=True)
@@ -148,6 +167,16 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 PastService("D1110", "2025-10-15"),
                 PastService("D1110", "2026-04-14"),
             ),
+            # A grace period: care until mid-March can use this year's
+            # balance and next plan year's fresh maximum.
+            fsa=Fsa(
+                balance=300,
+                year_end="2026-12-31",
+                grace_period_end="2027-03-15",
+                carryover_limit=0,
+                election_limit=3400,
+                marginal_tax_rate=0.30,
+            ),
         ),
     ),
     SamplePlan(
@@ -195,6 +224,15 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
             coverage_start="2026-07-01",
             amount_used=0,
             deductible_met=0,
+            # A carryover: up to $680 of unspent money moves to next year.
+            fsa=Fsa(
+                balance=250,
+                year_end="2026-12-31",
+                grace_period_end=None,
+                carryover_limit=680,
+                election_limit=3400,
+                marginal_tax_rate=0.22,
+            ),
         ),
     ),
     SamplePlan(
@@ -250,6 +288,16 @@ SAMPLE_PLANS: tuple[SamplePlan, ...] = (
                 PastService("D1110", "2026-02-18"),
                 PastService("D3330", "2026-03-04"),
                 PastService("D2391", "2026-05-06"),
+            ),
+            # Use it or lose it: the balance pulls spending into this year
+            # while the nearly used maximum pushes it into the next.
+            fsa=Fsa(
+                balance=400,
+                year_end="2026-12-31",
+                grace_period_end=None,
+                carryover_limit=0,
+                election_limit=3400,
+                marginal_tax_rate=0.30,
             ),
         ),
     ),
@@ -508,6 +556,21 @@ def _check_member(s: SamplePlan) -> None:
         raise ValueError(f"plan {pid}: past services must be oldest first")
     if dates and dates[-1] > as_of:
         raise ValueError(f"plan {pid}: past service after as_of")
+    f = m.fsa
+    if f is None:
+        return
+    year_end = date.fromisoformat(f.year_end)
+    if year_end < as_of:
+        raise ValueError(f"plan {pid}: FSA year ended before as_of")
+    if f.grace_period_end is not None:
+        if f.carryover_limit:
+            raise ValueError(f"plan {pid}: FSA has both a grace period and carryover")
+        if date.fromisoformat(f.grace_period_end) <= year_end:
+            raise ValueError(f"plan {pid}: FSA grace period ends before the year")
+    if not 0 <= f.balance <= f.election_limit or f.carryover_limit < 0:
+        raise ValueError(f"plan {pid}: FSA amounts out of range")
+    if not 0 <= f.marginal_tax_rate < 1:
+        raise ValueError(f"plan {pid}: FSA tax rate must be in [0, 1)")
 
 
 def _check() -> None:

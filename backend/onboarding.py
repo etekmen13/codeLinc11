@@ -24,6 +24,7 @@ from catalog import (
     PROCEDURES,
     PROCEDURES_BY_CODE,
     SAMPLE_PLANS,
+    Fsa,
     MemberStatus,
     PastService,
     Plan,
@@ -123,6 +124,7 @@ class MemberOut(BaseModel):
     amount_used: float
     deductible_met: float
     past_services: list[PastService]
+    fsa: Fsa | None
 
 
 class OnboardingOut(BaseModel):
