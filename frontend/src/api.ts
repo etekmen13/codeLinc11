@@ -4,6 +4,8 @@
 
 import type {
   CareComparison,
+  CdtMapping,
+  NearbyProvider,
   CarePlan,
   OnboardingResult,
   Procedure,
@@ -145,5 +147,38 @@ export function fetch_care_plan(body: CarePlanRequest): Promise<CarePlan> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+export function fetch_nearby(radius_miles = 25): Promise<NearbyProvider[]> {
+  const query = new URLSearchParams({ radius_miles: String(radius_miles) });
+  return request<NearbyProvider[]>(`/api/providers/nearby?${query}`);
+}
+
+// Treatment description to catalog codes. Falls back to keyword matching on
+// the server when AI matching is not set up.
+export function map_treatment(
+  treatment_description: string,
+  signal?: AbortSignal,
+): Promise<CdtMapping> {
+  return request<CdtMapping>("/api/cdt/map", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ treatment_description }),
+    signal,
+  });
+}
+
+// Plain-language explanation endpoints. Both answer {"explanation": "..."}.
+export function fetch_explanation(
+  path: "/api/care-plan/explain" | "/api/care-plan/terms/explain",
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<{ explanation: string }> {
+  return request<{ explanation: string }>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
   });
 }

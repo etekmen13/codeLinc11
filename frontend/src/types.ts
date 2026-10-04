@@ -71,6 +71,7 @@ export interface SamplePlan {
 export interface QuizOption {
   id: string;
   label: string;
+  effect: "lowers" | "raises" | "neutral"; // direction of risk, for tone only
 }
 
 // The backend filters questions by procedure, so none carry applies_to.
@@ -118,6 +119,23 @@ export interface ProviderCard {
   credentials: string[];
   in_network: boolean;
   cost: ProviderCost;
+}
+
+// GET /api/providers/nearby: closest dentists, unpriced, nearest first.
+export interface NearbyProvider {
+  id: string;
+  name: string;
+  distance_miles: number;
+  credentials: string[];
+}
+
+// POST /api/cdt/map: a treatment description matched to catalog codes.
+export interface CdtMapping {
+  status: "candidate" | "needs_clarification" | "no_match";
+  candidate_codes: { code: string; reason: string }[];
+  clarification_question: string | null;
+  // "keywords" when the server has no AI model configured, or it failed
+  matched_by?: "model" | "keywords";
 }
 
 // What POST /api/providers returns; each column sorted by you_pay.
