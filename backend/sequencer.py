@@ -73,7 +73,12 @@ BEFORE_RESET_DAYS = 14
 AFTER_RESET_DAYS = 3
 
 # Smallest expected saving worth a "switch dentists" hint, in cents.
-HINT_MIN_SAVINGS = 1000
+HINT_MIN_SAVINGS = 100
+
+# Options are compared on expected cost plus this weight times the mean of
+# the costliest 5% of futures, so a cheaper option with a costly bad case
+# can lose to a steadier one. 0 compares on expected cost alone.
+TAIL_WEIGHT = 0.1
 
 
 # Dates
@@ -431,7 +436,7 @@ Metric = Callable[[Option], CostStats]
 
 def lowest_cost(
     scored: list[Scored],
-    cvar_weight: float = 0.0,
+    cvar_weight: float = TAIL_WEIGHT,
     metric: Metric = lambda option: option.cost,
 ) -> Scored:
     """Lowest expected cost, plus cvar_weight times the mean of the costliest
@@ -774,7 +779,10 @@ class CarePlan:
     # Every option, in date order; numbers come from a fresh simulation
     # (see Evaluated)
     options: tuple[Option, ...]
-    lowest_cost: Option  # lowest expected cost within the tolerance
+    tail_weight: float  # see TAIL_WEIGHT
+    # Lowest expected cost plus tail_weight times the costliest 5% of
+    # futures, within the tolerance
+    lowest_cost: Option
     baseline: Option
     savings: Savings  # baseline minus lowest_cost
     lever_savings: dict[str, float]  # expected savings by lever; sums to total
@@ -797,7 +805,7 @@ def choose_plan(
     select_sim: SimulationResult,
     report_sim: SimulationResult,
     tolerance: str = "low",
-    cvar_weight: float = 0.0,
+    cvar_weight: float = TAIL_WEIGHT,
     bands: tuple[RiskBand, ...] = RISK_BANDS,
     providers: tuple[Provider, ...] = PROVIDERS,
 ) -> CarePlan:
@@ -827,6 +835,7 @@ def choose_plan(
         as_of=o.as_of,
         provider_id=provider.id,
         tolerance=tolerance,
+        tail_weight=cvar_weight,
         options=tuple(s.option for s in full.report.values()),
         lowest_cost=chosen.option,
         baseline=baseline.option,
@@ -847,7 +856,7 @@ def plan_care(
     o: Onboarded,
     provider: Provider,
     tolerance: str = "low",
-    cvar_weight: float = 0.0,
+    cvar_weight: float = TAIL_WEIGHT,
     n_samples: int = N_SAMPLES,
     seed: int = 0,
     bands: tuple[RiskBand, ...] = RISK_BANDS,

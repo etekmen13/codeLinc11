@@ -202,8 +202,9 @@ def harbor():
 
 
 def test_lowest_cost_within_tolerance_and_what_more_risk_would_save():
+    # Expected cost alone, so July's bad case does not count against it.
     o, sim = harbor()
-    plan = choose_plan(o, UPTOWN, sim, sim, "low")
+    plan = choose_plan(o, UPTOWN, sim, sim, "low", cvar_weight=0.0)
     chosen = plan.lowest_cost
     assert (chosen.date, chosen.path, chosen.band) == (
         date(2027, 1, 4),
@@ -227,16 +228,20 @@ def test_lowest_cost_within_tolerance_and_what_more_risk_would_save():
 
 def test_wider_tolerance_includes_the_riskier_option():
     o, sim = harbor()
-    plan = choose_plan(o, UPTOWN, sim, sim, "medium")
+    plan = choose_plan(o, UPTOWN, sim, sim, "medium", cvar_weight=0.0)
     assert plan.lowest_cost.date == date(2027, 7, 1)
     assert plan.beyond_tolerance is None
 
 
-def test_tail_weight_favors_the_safer_option():
-    # July's costliest 5% average 1506.55, so 424.55 + 1506.55 > 2 * 444.60.
+def test_default_tail_weight_favors_the_steadier_option():
+    # January costs 444.60 in every future; July's costliest 5% average
+    # 1506.55. With weight 0.1: January 444.60 + 44.46 = 489.06, July
+    # 424.55 + 150.66 = 575.21. (They break even at a weight of about 0.019.)
     o, sim = harbor()
-    plan = choose_plan(o, UPTOWN, sim, sim, "medium", cvar_weight=1.0)
+    plan = choose_plan(o, UPTOWN, sim, sim, "medium")
+    assert plan.tail_weight == 0.1
     assert plan.lowest_cost.date == date(2027, 1, 4)
+    assert plan.beyond_tolerance is None
 
 
 def test_fsa_balance_makes_the_earliest_date_cheapest():
