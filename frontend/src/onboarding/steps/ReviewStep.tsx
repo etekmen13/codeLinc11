@@ -69,7 +69,7 @@ export function ReviewStep({
                 {procedure.name}
                 <span className="ob-muted">
                   {" "}
-                  (about {formatMoney(procedure.typical_fee)})
+                  (pricing is shown for each provider in the comparison)
                 </span>
               </>
             ) : (

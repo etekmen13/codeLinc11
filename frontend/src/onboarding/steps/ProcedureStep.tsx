@@ -35,6 +35,8 @@ function isMapping(value: unknown): value is Mapping {
 interface Props {
   procedures: Procedure[];
   procedure_code?: string;
+  description: string;
+  on_description_change: (description: string) => void;
   plan: Plan;
   member: Pick<MemberStatus, "coverage_start" | "as_of">;
   on_change: (cdt_code: string) => void;
@@ -45,13 +47,14 @@ interface Props {
 export function ProcedureStep({
   procedures,
   procedure_code,
+  description,
+  on_description_change,
   plan,
   member,
   on_change,
   on_back,
   on_next,
 }: Props) {
-  const [description, setDescription] = useState("");
   const [answer, setAnswer] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping | null>(null);
@@ -72,6 +75,8 @@ export function ProcedureStep({
             `Question: ${mapping.clarification_question} Answer: ${answer.trim()}`,
           ]
         : [];
+    on_change("");
+    setMapping(null);
     setLoading(true);
     setError("");
     setUnsupported("");
@@ -96,7 +101,11 @@ export function ProcedureStep({
         const supported = data.candidate_codes.filter((candidate) =>
           procedures.some((procedure) => procedure.cdt_code === candidate.code),
         );
-        if (data.status === "candidate" && supported.length === 1) {
+        if (
+          data.status === "candidate" &&
+          data.candidate_codes.length === 1 &&
+          supported.length === 1
+        ) {
           on_change(supported[0].code);
         } else {
           on_change("");
@@ -132,12 +141,14 @@ export function ProcedureStep({
         </label>
         <textarea
           id="treatment-description"
+          placeholder="For example: a porcelain crown on a back tooth"
+          aria-describedby="treatment-help"
           rows={4}
           maxLength={2000}
           value={description}
           disabled={loading}
           onChange={(event) => {
-            setDescription(event.target.value);
+            on_description_change(event.target.value);
             on_change("");
             setMapping(null);
             setHistory([]);
@@ -227,6 +238,10 @@ export function ProcedureStep({
                 })}
               </fieldset>
             )}
+          <p id="treatment-help" className="ob-muted">
+            We match your description to a treatment internally, then look up
+            each provider’s price for that treatment.
+          </p>
           {unsupported && (
             <p role="status" className="ob-notice">
               Cost estimate unavailable. Fee or coverage-category data is
