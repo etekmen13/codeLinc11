@@ -1,9 +1,11 @@
 // Backend calls. Request and response shapes match the Pydantic models in
-// backend/onboarding.py, so what you see in /docs is what these describe.
+// backend/onboarding.py and backend/provider.py, so what you see in /docs is
+// what these describe.
 
 import type {
   OnboardingResult,
   Procedure,
+  ProvidersResult,
   QuizAnswers,
   QuizQuestion,
   SamplePlan,
@@ -19,6 +21,11 @@ export interface OnboardingRequest {
   subscriber_id: string;
   procedure_code: string;
   quiz_answers: QuizAnswers;
+}
+
+export interface ProvidersRequest extends OnboardingRequest {
+  radius_miles?: number; // default 25
+  date_of_service?: string; // ISO date, default today
 }
 
 // FastAPI sends {"detail": "..."} or {"detail": ["...", ...]} from
@@ -77,6 +84,16 @@ export function submit_onboarding(
   body: OnboardingRequest,
 ): Promise<OnboardingResult> {
   return request<OnboardingResult>("/api/onboarding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetch_providers(
+  body: ProvidersRequest,
+): Promise<ProvidersResult> {
+  return request<ProvidersResult>("/api/providers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
