@@ -163,9 +163,12 @@ export interface CarePlanLine {
   provider_name: string;
   in_network: boolean;
   path: PaymentPath;
-  provider_fee: number;
+  provider_fee: number; // what the dentist bills
+  allowed_amount: number; // what the plan recognizes
+  deductible_applied: number; // 0 for cash
   plan_pays: number;
   you_pay: number;
+  balance_billing: number; // billed minus allowed, out of network; 0 for cash
   denial_reason: "waiting_period" | "frequency_limit" | null;
 }
 

@@ -50,6 +50,12 @@ def test_keystone_root_canal_in_dollars():
         400.0,
         540.0,
     )
+    # This year's deductible is already met.
+    assert (
+        line["allowed_amount"],
+        line["deductible_applied"],
+        line["balance_billing"],
+    ) == (940.0, 0.0, 0.0)
     assert data["maximum"][0]["remaining"] == 0.0
     assert data["fsa"]["spent"] == 400.0
     assert [b["name"] for b in data["risk_bands"]] == ["low", "medium", "high"]
