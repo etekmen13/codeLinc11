@@ -5,7 +5,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-command -v uv >/dev/null || { echo "uv is required: https://docs.astral.sh/uv/" >&2; exit 1; }
+if ! command -v uv >/dev/null; then
+  echo "Installing uv..."
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex" ;;
+    *)
+      if command -v curl >/dev/null; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+      else
+        wget -qO- https://astral.sh/uv/install.sh | sh
+      fi ;;
+  esac
+  export PATH="$HOME/.local/bin:$PATH"
+  command -v uv >/dev/null || { echo "uv install failed: https://docs.astral.sh/uv/" >&2; exit 1; }
+fi
 command -v npm >/dev/null || { echo "Node.js 20+ is required" >&2; exit 1; }
 
 [ -f backend/.env ] || cp backend/.env.example backend/.env
