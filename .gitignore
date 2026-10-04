@@ -9,3 +9,5 @@ dist/
 
 # Env
 .env
+
+**/.ruff_cache/
