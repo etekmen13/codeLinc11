@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { find_sample_plan } from "../data/plans";
-import { findProcedure } from "../data/procedures";
-import { questionsFor } from "../lib/risk";
+import {
+  fetch_form,
+  problems_of,
+  submit_onboarding,
+  type FormOptions,
+} from "../api";
 import type { OnboardingResult } from "../types";
 import {
-  buildResult,
+  build_request,
   DEMO_DRAFT,
   EMPTY_DRAFT,
   STEPS,
@@ -20,41 +23,68 @@ import { SymptomCheck } from "./steps/SymptomCheck";
 import { UrgentCare } from "./steps/UrgentCare";
 
 interface Props {
-  onComplete: (result: OnboardingResult) => void;
+  on_complete: (result: OnboardingResult) => void;
 }
 
-export function Onboarding({ onComplete }: Props) {
-  const [step, setStep] = useState<Step>("symptoms");
-  const [urgent, setUrgent] = useState(false);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+export function Onboarding({ on_complete }: Props) {
+  const [step, set_step] = useState<Step>("symptoms");
+  const [urgent, set_urgent] = useState(false);
+  const [draft, set_draft] = useState<Draft>(EMPTY_DRAFT);
+  const [form, set_form] = useState<FormOptions | null>(null);
+  const [form_error, set_form_error] = useState<string[] | null>(null);
+  const [submitting, set_submitting] = useState(false);
+  const [submit_error, set_submit_error] = useState<string[] | null>(null);
+  const heading_ref = useRef<HTMLHeadingElement>(null);
+
+  // Load plans and procedures once, while the user is on the symptom check.
+  useEffect(() => {
+    fetch_form()
+      .then(set_form)
+      .catch((err: unknown) => set_form_error(problems_of(err)));
+  }, []);
 
   // Move focus to the new heading so keyboard and screen-reader users
   // land at the top of each step.
   useEffect(() => {
-    headingRef.current?.focus();
+    heading_ref.current?.focus();
   }, [step, urgent]);
 
   const update = (patch: Partial<Draft>) =>
-    setDraft((prev) => ({ ...prev, ...patch }));
+    set_draft((prev) => ({ ...prev, ...patch }));
 
   const index = STEPS.findIndex((s) => s.id === step);
-  const go = (offset: number) => setStep(STEPS[index + offset].id);
-  const next = () => go(1);
-  const back = () => go(-1);
+  const next = () => set_step(STEPS[index + 1].id);
+  const back = () => set_step(STEPS[index - 1].id);
 
-  const sample = draft.planId ? find_sample_plan(draft.planId) : undefined;
-  const procedure = draft.procedureCode
-    ? findProcedure(draft.procedureCode)
-    : undefined;
+  const sample = form?.plans.find((s) => s.plan.id === draft.plan_id);
+  const procedure = form?.procedures.find(
+    (p) => p.cdt_code === draft.procedure_code,
+  );
+
+  async function submit() {
+    const request = build_request(draft);
+    if (!request) return;
+    set_submitting(true);
+    set_submit_error(null);
+    try {
+      on_complete(await submit_onboarding(request));
+    } catch (err) {
+      set_submit_error(problems_of(err));
+    } finally {
+      set_submitting(false);
+    }
+  }
 
   if (urgent) {
     return (
       <main className="ob">
-        <UrgentCare headingRef={headingRef} onBack={() => setUrgent(false)} />
+        <UrgentCare heading_ref={heading_ref} on_back={() => set_urgent(false)} />
       </main>
     );
   }
+
+  // Every step after the symptom check needs the plan and procedure lists.
+  const needs_form = step !== "symptoms";
 
   return (
     <main className="ob">
@@ -75,8 +105,9 @@ export function Onboarding({ onComplete }: Props) {
           type="button"
           className="ob-link"
           onClick={() => {
-            setDraft(DEMO_DRAFT);
-            setStep("symptoms");
+            set_draft(DEMO_DRAFT);
+            set_submit_error(null);
+            set_step("symptoms");
           }}
         >
           Fill with demo data
@@ -84,55 +115,77 @@ export function Onboarding({ onComplete }: Props) {
       </header>
 
       <section className="ob-panel" aria-labelledby="ob-title">
-        <h1 id="ob-title" ref={headingRef} tabIndex={-1}>
+        <h1 id="ob-title" ref={heading_ref} tabIndex={-1}>
           {STEPS[index].title}
         </h1>
 
         {step === "symptoms" && (
-          <SymptomCheck onUrgent={() => setUrgent(true)} onClear={next} />
+          <SymptomCheck on_urgent={() => set_urgent(true)} on_clear={next} />
         )}
 
-        {step === "plan" && (
+        {needs_form && form_error && (
+          <p className="ob-error">
+            Could not load plans and procedures: {form_error.join("; ")}. Check
+            that the backend is running, then reload the page.
+          </p>
+        )}
+        {needs_form && !form && !form_error && (
+          <p className="ob-muted">Loading plans and procedures…</p>
+        )}
+
+        {form && step === "plan" && (
           <PlanStep
-            planId={draft.planId}
+            plans={form.plans}
+            plan_id={draft.plan_id}
             subscriber_id={draft.subscriber_id}
-            onChange={update}
-            onBack={back}
-            onNext={next}
+            on_change={update}
+            on_back={back}
+            on_next={next}
           />
         )}
 
-        {step === "procedure" && sample && (
+        {form && step === "procedure" && sample && (
           <ProcedureStep
-            procedureCode={draft.procedureCode}
+            procedures={form.procedures}
+            procedure_code={draft.procedure_code}
             plan={sample.plan}
             member={sample.default_member}
-            onChange={(cdt_code) => update({ procedureCode: cdt_code })}
-            onBack={back}
-            onNext={next}
+            // Different procedures get different questions, so a new
+            // procedure clears the old answers.
+            on_change={(cdt_code) =>
+              update({ procedure_code: cdt_code, quiz_answers: {} })
+            }
+            on_back={back}
+            on_next={next}
           />
         )}
 
-        {step === "quiz" && procedure && (
+        {form && step === "quiz" && draft.procedure_code && (
           <QuizStep
-            questions={questionsFor(procedure)}
+            procedure_code={draft.procedure_code}
             answers={draft.quiz_answers}
-            onAnswer={(questionId, optionId) =>
+            on_answer={(question_id, option_id) =>
               update({
-                quiz_answers: { ...draft.quiz_answers, [questionId]: optionId },
+                quiz_answers: { ...draft.quiz_answers, [question_id]: option_id },
               })
             }
-            onBack={back}
-            onNext={next}
+            on_back={back}
+            on_next={next}
           />
         )}
 
-        {step === "review" && (
+        {form && step === "review" && (
           <ReviewStep
-            result={buildResult(draft)}
-            onEdit={setStep}
-            onBack={back}
-            onConfirm={onComplete}
+            sample={sample}
+            procedure={procedure}
+            subscriber_id={draft.subscriber_id}
+            answer_count={Object.keys(draft.quiz_answers).length}
+            can_submit={build_request(draft) !== null}
+            submitting={submitting}
+            problems={submit_error}
+            on_edit={set_step}
+            on_back={back}
+            on_submit={submit}
           />
         )}
       </section>

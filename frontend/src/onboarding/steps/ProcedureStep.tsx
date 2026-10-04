@@ -1,20 +1,20 @@
-import { procedures } from "../../data/procedures";
 import {
   formatDate,
   formatMoney,
   isInWaitingPeriod,
   waitingPeriodEnds,
 } from "../../lib/coverage";
-import type { InsuranceType, MemberStatus, Plan } from "../../types";
+import type { InsuranceType, MemberStatus, Plan, Procedure } from "../../types";
 import { StepNav } from "./StepNav";
 
 interface Props {
-  procedureCode?: string;
+  procedures: Procedure[];
+  procedure_code?: string;
   plan: Plan;
   member: Pick<MemberStatus, "coverage_start">;
-  onChange: (cdt_code: string) => void;
-  onBack: () => void;
-  onNext: () => void;
+  on_change: (cdt_code: string) => void;
+  on_back: () => void;
+  on_next: () => void;
 }
 
 const CATEGORY_LABEL: Record<InsuranceType, string> = {
@@ -24,14 +24,15 @@ const CATEGORY_LABEL: Record<InsuranceType, string> = {
 };
 
 export function ProcedureStep({
-  procedureCode,
+  procedures,
+  procedure_code,
   plan,
   member,
-  onChange,
-  onBack,
-  onNext,
+  on_change,
+  on_back,
+  on_next,
 }: Props) {
-  const selected = procedures.find((p) => p.cdt_code === procedureCode);
+  const selected = procedures.find((p) => p.cdt_code === procedure_code);
   const waiting =
     selected && isInWaitingPeriod(plan, member, selected.category);
 
@@ -45,8 +46,8 @@ export function ProcedureStep({
               type="radio"
               name="procedure"
               value={p.cdt_code}
-              checked={p.cdt_code === procedureCode}
-              onChange={() => onChange(p.cdt_code)}
+              checked={p.cdt_code === procedure_code}
+              onChange={() => on_change(p.cdt_code)}
             />
             <span className="ob-choice-body">
               <span className="ob-choice-title">{p.name}</span>
@@ -68,7 +69,7 @@ export function ProcedureStep({
         </p>
       )}
 
-      <StepNav onBack={onBack} onNext={onNext} nextDisabled={!selected} />
+      <StepNav on_back={on_back} on_next={on_next} next_disabled={!selected} />
     </>
   );
 }

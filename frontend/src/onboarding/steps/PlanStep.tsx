@@ -1,45 +1,46 @@
 import { useState } from "react";
 import {
-  find_sample_plan,
-  generate_subscriber_id,
-  is_valid_subscriber_id,
-  normalize_subscriber_id,
-  sample_plans,
-} from "../../data/plans";
-import {
   formatDate,
   formatMoney,
   planYearResetDate,
   remainingDeductible,
   remainingMaximum,
 } from "../../lib/coverage";
+import type { SamplePlan } from "../../types";
 import type { Draft } from "../draft";
+import {
+  generate_subscriber_id,
+  is_valid_subscriber_id,
+  normalize_subscriber_id,
+} from "../subscriber_id";
 import { StepNav } from "./StepNav";
 
 interface Props {
-  planId?: string;
+  plans: SamplePlan[];
+  plan_id?: string;
   subscriber_id: string;
-  onChange: (patch: Partial<Draft>) => void;
-  onBack: () => void;
-  onNext: () => void;
+  on_change: (patch: Partial<Draft>) => void;
+  on_back: () => void;
+  on_next: () => void;
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export function PlanStep({
-  planId,
+  plans,
+  plan_id,
   subscriber_id,
-  onChange,
-  onBack,
-  onNext,
+  on_change,
+  on_back,
+  on_next,
 }: Props) {
   // Only show the format error after the user leaves the field.
-  const [touched, setTouched] = useState(false);
-  const sample = planId ? find_sample_plan(planId) : undefined;
-  const idValid = sample
+  const [touched, set_touched] = useState(false);
+  const sample = plans.find((s) => s.plan.id === plan_id);
+  const id_valid = sample
     ? is_valid_subscriber_id(sample.plan, subscriber_id)
     : false;
-  const showIdError = touched && subscriber_id !== "" && !idValid;
+  const show_id_error = touched && subscriber_id !== "" && !id_valid;
 
   return (
     <>
@@ -47,18 +48,18 @@ export function PlanStep({
         <label htmlFor="ob-insurer">Insurance company</label>
         <select
           id="ob-insurer"
-          value={planId ?? ""}
+          value={plan_id ?? ""}
           onChange={(e) => {
             // A new insurer means a new ID format, so clear the old ID.
-            onChange({
-              planId: e.target.value || undefined,
+            on_change({
+              plan_id: e.target.value || undefined,
               subscriber_id: "",
             });
-            setTouched(false);
+            set_touched(false);
           }}
         >
           <option value="">Choose your insurer</option>
-          {sample_plans.map(({ plan }) => (
+          {plans.map(({ plan }) => (
             <option key={plan.id} value={plan.id}>
               {plan.insurer} {plan.plan_name}
             </option>
@@ -77,12 +78,12 @@ export function PlanStep({
                 placeholder={sample.plan.subscriber_id_example}
                 autoComplete="off"
                 spellCheck={false}
-                aria-invalid={showIdError}
+                aria-invalid={show_id_error}
                 aria-describedby="ob-subscriber-hint"
-                onChange={(e) => onChange({ subscriber_id: e.target.value })}
+                onChange={(e) => on_change({ subscriber_id: e.target.value })}
                 onBlur={() => {
-                  setTouched(true);
-                  onChange({
+                  set_touched(true);
+                  on_change({
                     subscriber_id: normalize_subscriber_id(subscriber_id),
                   });
                 }}
@@ -91,10 +92,10 @@ export function PlanStep({
                 type="button"
                 className="ob-button-secondary"
                 onClick={() => {
-                  onChange({
+                  on_change({
                     subscriber_id: generate_subscriber_id(sample.plan),
                   });
-                  setTouched(true);
+                  set_touched(true);
                 }}
               >
                 Use a sample ID
@@ -102,9 +103,9 @@ export function PlanStep({
             </div>
             <p
               id="ob-subscriber-hint"
-              className={showIdError ? "ob-error" : "ob-muted"}
+              className={show_id_error ? "ob-error" : "ob-muted"}
             >
-              {showIdError
+              {show_id_error
                 ? `That doesn't match ${sample.plan.insurer}'s format. It should look like ${sample.plan.subscriber_id_example}.`
                 : `Printed on your insurance card, for example ${sample.plan.subscriber_id_example}.`}
             </p>
@@ -149,7 +150,7 @@ export function PlanStep({
         </>
       )}
 
-      <StepNav onBack={onBack} onNext={onNext} nextDisabled={!idValid} />
+      <StepNav on_back={on_back} on_next={on_next} next_disabled={!id_valid} />
     </>
   );
 }

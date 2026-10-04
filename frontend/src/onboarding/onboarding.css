@@ -356,3 +356,5 @@
 .shell .ob .ob-summary { display:block; }
 .shell .ob label { font-weight:400; }
 .shell .ob .ob-choice { border-radius:4px; }
+.ob-notice p { margin:0; }
+.ob-notice ul { margin:0.4rem 0 0; padding-left:1.2rem; }
