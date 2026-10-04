@@ -1,61 +1,255 @@
-import {useState} from 'react';
-import { Onboarding } from './onboarding/Onboarding';
-import type { OnboardingResult } from './types';
-import { isInWaitingPeriod, planYearResetDate, formatDate } from './lib/coverage';
+import { useEffect, useState } from "react";
+import {
+  fetch_care_comparison,
+  fetch_care_plan,
+  fetch_providers,
+  problems_of,
+  type OnboardingRequest,
+} from "./api";
+import { Onboarding } from "./onboarding/Onboarding";
+import type {
+  CareComparison,
+  CarePlan,
+  OnboardingResult,
+  ProviderCard,
+} from "./types";
+import { CompareScreen } from "./careplan/CompareScreen";
+import { CarePlanScreen } from "./careplan/CarePlanScreen";
+import { Tolerance } from "./careplan/shared";
+import "./careplan/careplan.css";
 
-type Plan = {maximum:number; used:number; deductible:number; coverage:number; excluded:boolean};
-type Provider = {id:number; name:string; miles:number; network:boolean; fee:number; allowed:number};
-const providers:Provider[] = [
-  {id:1,name:'Oak Street Dental',miles:2.4,network:true,fee:1400,allowed:1400},
-  {id:2,name:'Parkside Family Dentistry',miles:4.8,network:true,fee:1250,allowed:1250},
-  {id:3,name:'City Center Dental',miles:3.1,network:false,fee:1700,allowed:1300},
-];
-const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
-function estimate(p:Provider,plan:Plan){
-  const allowed=Math.min(p.fee,p.allowed);
-  const deductible=Math.min(allowed,plan.deductible);
-  const paid=plan.excluded?0:Math.min(Math.max(0,plan.maximum-plan.used),Math.max(0,allowed-deductible)*plan.coverage/100);
-  return {paid,owed:p.fee-paid,deductible,balance:p.fee-allowed};
-}
-const glossary:Record<string,string>={
-  Deductible:'The amount you pay for covered care before the plan starts sharing eligible costs.',
-  Coinsurance:'The percentage of eligible costs you or your plan pays. In this demo, “plan pays 50%” means you pay the other 50%, plus any deductible or uncovered charges.',
-  'Annual maximum':'The most your dental plan will pay in one plan year. This is a limit on the insurer’s payments.',
-  'Balance billing':'When a provider charges more than the amount your plan recognizes, you may owe the difference.',
-  'In-network':'A provider that has agreed to your plan’s network terms and negotiated fees.',
-};
-export default function App(){
-  const [step,setStep]=useState(0);
-  const [onboarding,setOnboarding]=useState<OnboardingResult|null>(null);
-  const procedure=onboarding?.procedure.name??'';
-  const procedureDescription=onboarding?.procedure.description??'';
-  const zip='sample area';
-  const category=onboarding?.procedure.category??'major';
-  const plan:Plan={
-    maximum:onboarding?.plan.annual_maximum??1500,
-    used:onboarding?.member.amount_used??0,
-    deductible:onboarding&&onboarding.plan.deductible_applies_to.includes(category)?Math.max(0,onboarding.plan.deductible-onboarding.member.deductible_met):0,
-    coverage:(onboarding?.plan.coinsurance[category]??0.5)*100,
-    excluded:onboarding?isInWaitingPeriod(onboarding.plan,onboarding.member,category):false,
-  };
-  const [radius,setRadius]=useState(10);
-  const [network,setNetwork]=useState(false);
-  const [selected,setSelected]=useState<Provider|null>(null);
-  const [term,setTerm]=useState('Deductible');
-  const procedureProviders=providers.map(p=>({
-    ...p,
-    fee:Math.round(p.fee*(onboarding?.procedure.typical_fee??1400)/1400),
-    allowed:p.network?Math.round(p.fee*(onboarding?.procedure.typical_fee??1400)/1400):onboarding?.plan.out_of_network_allowed[onboarding.procedure.cdt_code]??Math.round(p.allowed*(onboarding?.procedure.typical_fee??1400)/1400),
-  }));
-  const remaining=Math.max(0,plan.maximum-plan.used);
-  const result=selected?estimate(selected,plan):null;
-  return <div className="shell">
-    <aside><a className="brand" href="#" onClick={e=>{e.preventDefault();setStep(0);}}>✦ ClearCare</a><p>Your dental benefits,<br/>made clear.</p><nav aria-label="Main navigation">{['Your details','Find providers','Care plan','Understand your plan'].map((label,i)=><button key={label} className={step===i?'active':''} aria-current={step===i?'step':undefined} onClick={()=>setStep(i>0&&!onboarding?0:i)}><span>{i+1}</span>{label}</button>)}</nav><div className="sidebar-note">CODELINC 11<br/><strong>Interactive demo</strong><p>All plans and providers are fictional.</p></div></aside>
-    <main><header><span>DENTAL BENEFITS OPTIMIZER</span><span className="badge">Sample data</span></header>
-    <div hidden={step!==0}><Onboarding on_complete={value=>{setOnboarding(value);setSelected(null);setStep(1);}}/></div>
-    {step===1&&<><h1>Find the right fit for your care.</h1><p className="intro">Compare sample providers for your {procedure.toLowerCase()}. Your plan has {money(remaining)} left this year.</p><div className="filters"><label>Within<select value={radius} onChange={e=>setRadius(Number(e.target.value))}><option value={3}>3 miles</option><option value={5}>5 miles</option><option value={10}>10 miles</option></select></label><label className="check"><input type="checkbox" checked={network} onChange={e=>setNetwork(e.target.checked)}/>In-network only</label><span className="muted">Demo location: {zip}</span></div><div className="providers">{procedureProviders.filter(p=>p.miles<=radius&&(!network||p.network)).sort((a,b)=>estimate(a,plan).owed-estimate(b,plan).owed).map(p=><article className="card" key={p.id}><span className={'badge '+(!p.network?'amber':'')}>{p.network?'In-network':'Out-of-network'}</span><h2>{p.name}</h2><p className="muted">{p.miles} miles · Sample provider</p><p className="muted">Estimated you pay</p><div className="price">{money(estimate(p,plan).owed)}</div><p>Procedure fee: {money(p.fee)}<br/>Plan pays: {money(estimate(p,plan).paid)}</p><button className="primary" onClick={()=>{setSelected(p);setStep(2);}}>Choose provider →</button></article>)}</div><p className="muted">Estimates assume the procedure is covered, subject to waiting periods. Frequency limits and prior procedure history are not checked by this demo. Verify actual benefits and fees with your plan and dentist.</p></>}
-    {step===2&&<><h1>Your care, with the numbers explained.</h1>{!selected||!result?<div className="card"><p>Choose a provider to see your cost breakdown.</p><button className="primary" onClick={()=>setStep(1)}>Find providers</button></div>:<><p className="intro">{procedure} at {selected.name}</p>{procedureDescription&&<p className="notice">Your description: {procedureDescription}</p>}<div className="grid"><section className="card"><h2>Estimated cost breakdown</h2><dl><dt>Provider fee</dt><dd>{money(selected.fee)}</dd><dt>Allowed amount</dt><dd>{money(selected.allowed)}</dd><dt>Deductible applied</dt><dd>{money(result.deductible)}</dd><dt>Balance-billing gap</dt><dd>{money(result.balance)}</dd><dt>Your plan pays</dt><dd>{money(result.paid)}</dd><dt className="total">You pay</dt><dd className="total">{money(result.owed)}</dd></dl>{plan.excluded&&<p className="notice">This procedure is still within the sample plan’s waiting period. Estimated plan payment is zero.</p>}<p className="notice">Your plan pays {plan.coverage}% after the remaining deductible, capped by your {money(remaining)} remaining benefit.</p></section><section className="card"><h2>Annual benefit tracker</h2><p>{money(plan.used)} of {money(plan.maximum)} used</p><progress max={Math.max(1,plan.maximum)} value={plan.used}/><h3>{money(remaining)} available</h3><p>After this procedure: {money(Math.max(0,remaining-result.paid))} remaining.</p><div className="notice">Sample plan resets {onboarding?formatDate(planYearResetDate(onboarding.plan)):"at the start of its next year"}. Confirm your actual reset date and discuss treatment timing with your dentist.</div></section></div><section className="card"><h2>Care timeline</h2><p><strong>1. Now:</strong> Confirm your provider’s quote and coverage.</p><p><strong>2. Before scheduling:</strong> Ask your dentist about appropriate timing.</p><p><strong>3. Before the plan resets:</strong> Review remaining benefits and any outstanding recommended care.</p></section></>}</>}
-    {step===3&&<><h1>Insurance language, in plain English.</h1><p className="intro">Understand the terms behind your estimate.</p><section className="card"><label>Choose a term<select value={term} onChange={e=>setTerm(e.target.value)}>{Object.keys(glossary).map(t=><option key={t}>{t}</option>)}</select></label><div className="translation" aria-live="polite"><h2>{term}</h2><p>{glossary[term]}</p></div><p className="muted">Demo glossary. Connect your FastAPI translator here for explanations grounded in the user’s plan.</p></section></>}
-    <footer>Illustrative estimates · Confirm benefits before booking</footer></main>
-  </div>;
+export default function App() {
+  const [screen, setScreen] = useState<"onboarding" | "compare" | "plan">(
+    "onboarding",
+  );
+  const [onboarding, setOnboarding] = useState<OnboardingResult | null>(null);
+  const [radius, setRadius] = useState(25);
+  const [tolerance, setTolerance] = useState("low");
+  const [providerId, setProviderId] = useState<string | null>(null);
+  const [comparison, setComparison] = useState<CareComparison | null>(null);
+  const [quotes, setQuotes] = useState<ProviderCard[]>([]);
+  const [plan, setPlan] = useState<CarePlan | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [compareError, setCompareError] = useState("");
+  const [planError, setPlanError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const request: OnboardingRequest | null = onboarding
+    ? {
+        plan_id: onboarding.plan.id,
+        subscriber_id: onboarding.member.subscriber_id,
+        procedure_code: onboarding.procedure.cdt_code,
+        quiz_answers: onboarding.quiz_answers,
+      }
+    : null;
+  const requestKey = request ? JSON.stringify(request) : null;
+  useEffect(() => {
+    if (!requestKey) return;
+    let cancelled = false;
+    setCompareLoading(true);
+    setCompareError("");
+    const base = JSON.parse(requestKey) as OnboardingRequest;
+    void Promise.all([
+      fetch_care_comparison({
+        ...base,
+        radius_miles: radius,
+        risk_tolerance: tolerance,
+      }),
+      fetch_providers({ ...base, radius_miles: radius }),
+    ])
+      .then(([comparison, prices]) => {
+        if (!cancelled) {
+          setComparison(comparison);
+          setQuotes([...prices.in_network, ...prices.out_of_network]);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setCompareError(problems_of(error).join(" "));
+      })
+      .finally(() => {
+        if (!cancelled) setCompareLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestKey, radius, tolerance, retry]);
+  useEffect(() => {
+    if (!requestKey || !providerId) return;
+    let cancelled = false;
+    setPlanLoading(true);
+    setPlanError("");
+    void fetch_care_plan({
+      ...JSON.parse(requestKey),
+      provider_id: providerId,
+      risk_tolerance: tolerance,
+    })
+      .then((value) => {
+        if (!cancelled) setPlan(value);
+      })
+      .catch((error) => {
+        if (!cancelled) setPlanError(problems_of(error).join(" "));
+      })
+      .finally(() => {
+        if (!cancelled) setPlanLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestKey, providerId, tolerance, retry]);
+  const bands = comparison?.risk_bands ?? [
+    { name: "low", upper: 0.1 },
+    { name: "medium", upper: 0.25 },
+    { name: "high", upper: null },
+  ];
+  return (
+    <div className="shell cp-shell">
+      <aside>
+        <a
+          href="#"
+          className="brand"
+          onClick={(e) => {
+            e.preventDefault();
+            setScreen("onboarding");
+          }}
+        >
+          ✦ ClearCare
+        </a>
+        <p>
+          Your dental benefits,
+          <br />
+          made clear.
+        </p>
+        <nav aria-label="Main navigation">
+          {[
+            { id: "onboarding", label: "Your details" },
+            { id: "compare", label: "Compare providers" },
+            { id: "plan", label: "Care plan" },
+          ].map((item, i) => (
+            <button
+              key={item.id}
+              className={screen === item.id ? "active" : ""}
+              aria-current={screen === item.id ? "page" : undefined}
+              disabled={item.id !== "onboarding" && !onboarding}
+              onClick={() => setScreen(item.id as typeof screen)}
+            >
+              <span>{i + 1}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-note">
+          <strong>Interactive demo</strong>
+          <p>Sample providers, benefits and transition rates.</p>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <span>DENTAL BENEFITS OPTIMIZER</span>
+          <span className="badge">Sample data</span>
+        </header>
+        <div hidden={screen !== "onboarding"}>
+          <Onboarding
+            on_complete={(value) => {
+              setOnboarding(value);
+              setProviderId(null);
+              setPlan(null);
+              setTolerance("low");
+              setScreen("compare");
+            }}
+          />
+        </div>
+        {screen !== "onboarding" && onboarding && (
+          <>
+            <div className="cp-controls">
+              <Tolerance
+                bands={bands}
+                value={tolerance}
+                onChange={setTolerance}
+              />
+              {screen === "compare" && (
+                <label>
+                  Search radius
+                  <select
+                    value={radius}
+                    onChange={(e) => setRadius(Number(e.target.value))}
+                  >
+                    <option value={5}>5 miles</option>
+                    <option value={10}>10 miles</option>
+                    <option value={25}>25 miles</option>
+                    <option value={50}>50 miles</option>
+                  </select>
+                </label>
+              )}
+            </div>
+            {screen === "compare" ? (
+              <>
+                <h1>Compare the cost of your care.</h1>
+                <p>
+                  {onboarding.procedure.name} · {onboarding.procedure.cdt_code}
+                </p>
+                {compareLoading ? (
+                  <div className="card" role="status">
+                    Pricing schedules and simulated futures…
+                  </div>
+                ) : compareError ? (
+                  <div className="card" role="alert">
+                    <p>{compareError}</p>
+                    <button onClick={() => setRetry((r) => r + 1)}>
+                      Retry comparison
+                    </button>
+                  </div>
+                ) : (
+                  comparison && (
+                    <CompareScreen
+                      data={comparison}
+                      today={quotes}
+                      onSelect={(id) => {
+                        setProviderId(id);
+                        setScreen("plan");
+                      }}
+                    />
+                  )
+                )}
+              </>
+            ) : !providerId ? (
+              <div className="card">
+                <h1>Your care plan</h1>
+                <p>Select a provider to view its schedules.</p>
+                <button
+                  className="primary"
+                  onClick={() => setScreen("compare")}
+                >
+                  Compare providers
+                </button>
+              </div>
+            ) : planLoading || compareLoading ? (
+              <div className="card" role="status">
+                Loading your care plan…
+              </div>
+            ) : planError || compareError ? (
+              <div className="card" role="alert">
+                <p>{planError || compareError}</p>
+                <button onClick={() => setRetry((r) => r + 1)}>
+                  Retry care plan
+                </button>
+              </div>
+            ) : (
+              plan && (
+                <CarePlanScreen
+                  key={`${providerId}-${requestKey}-${tolerance}`}
+                  data={plan}
+                  onboarding={onboarding}
+                  provider={quotes.find((p) => p.id === providerId)}
+                />
+              )
+            )}
+          </>
+        )}
+        <footer>
+          Informational estimates · Actual fees, benefits and clinical timing
+          require confirmation.
+        </footer>
+      </main>
+    </div>
+  );
 }

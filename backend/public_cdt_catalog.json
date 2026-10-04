@@ -1,0 +1,1062 @@
+{
+  "source": "refw242_feesched_dentad_7.xlsx",
+  "scope": "Uploaded Connecticut adult dental fee schedule; active on 2026-10-03; not a complete CDT edition. Medicaid fees are not used.",
+  "codes": [
+    {
+      "code": "D0120",
+      "description": "Periodic oral evaluation - established patient"
+    },
+    {
+      "code": "D0140",
+      "description": "Limited oral evaluation - problem focused"
+    },
+    {
+      "code": "D0150",
+      "description": "Comprehensive oral evaluation - new or established patient"
+    },
+    {
+      "code": "D0160",
+      "description": "Detailed and extensive oral evaluation - problem focused by report"
+    },
+    {
+      "code": "D0180",
+      "description": "Comprehensive periodontal evaluation - new or established patient"
+    },
+    {
+      "code": "D0191",
+      "description": "Assessment of a patient"
+    },
+    {
+      "code": "D0210",
+      "description": "Intraoral - comprehensive series of radiographic images"
+    },
+    {
+      "code": "D0220",
+      "description": "Intraoral - periapical first radiographic image"
+    },
+    {
+      "code": "D0230",
+      "description": "Intraoral - periapical each additional radiographic image"
+    },
+    {
+      "code": "D0240",
+      "description": "Intraoral - occlusal radiographic image"
+    },
+    {
+      "code": "D0270",
+      "description": "Bitewing - single radiographic image"
+    },
+    {
+      "code": "D0272",
+      "description": "Bitewings - two radiographic images"
+    },
+    {
+      "code": "D0274",
+      "description": "Bitewings - four radiographic images"
+    },
+    {
+      "code": "D0321",
+      "description": "Other temporomandibular joint radiographic images by report"
+    },
+    {
+      "code": "D0330",
+      "description": "Panoramic radiographic image"
+    },
+    {
+      "code": "D0340",
+      "description": "2d cephalometric radiographic image - acquisition measurement and analysis"
+    },
+    {
+      "code": "D0364",
+      "description": "Cone beam ct capture and interpretation with limited field of view - less than one whole jaw"
+    },
+    {
+      "code": "D0365",
+      "description": "Cone beam ct capture and interpretation with field of view of one full dental arch - mandible"
+    },
+    {
+      "code": "D0366",
+      "description": "Cone beam ct capture and interpretation with field of view of one full dental arch - maxilla with or without cranium"
+    },
+    {
+      "code": "D0367",
+      "description": "Cone beam ct capture and interpretation with field of view of both jaws with or without cranium"
+    },
+    {
+      "code": "D0368",
+      "description": "Cone beam ct capture and interpretation for tmj series including two or more exposures"
+    },
+    {
+      "code": "D0372",
+      "description": "Tomo comp series images"
+    },
+    {
+      "code": "D0373",
+      "description": "Tomo bitewing image"
+    },
+    {
+      "code": "D0374",
+      "description": "Tomo periapical image"
+    },
+    {
+      "code": "D0412",
+      "description": "Blood glucose level test - in-office using a glucose meter"
+    },
+    {
+      "code": "D0425",
+      "description": "Caries susceptibility tests"
+    },
+    {
+      "code": "D0470",
+      "description": "Diagnostic casts"
+    },
+    {
+      "code": "D0601",
+      "description": "Caries risk assessment and documentation with a finding of low risk"
+    },
+    {
+      "code": "D0603",
+      "description": "Caries risk assessment and documentation with a finding of high risk"
+    },
+    {
+      "code": "D0999",
+      "description": "Unspecified diagnostic procedure by report"
+    },
+    {
+      "code": "D1110",
+      "description": "Prophylaxis - adult"
+    },
+    {
+      "code": "D1206",
+      "description": "Topical application of fluoride varnish"
+    },
+    {
+      "code": "D1208",
+      "description": "Topical application of fluoride - excluding varnish"
+    },
+    {
+      "code": "D1320",
+      "description": "Tobacco counseling for the control and prevention of oral disease"
+    },
+    {
+      "code": "D1354",
+      "description": "Interim caries arresting medicament application - per tooth"
+    },
+    {
+      "code": "D1510",
+      "description": "Space maintainer - fixed unilateral - per quadrant"
+    },
+    {
+      "code": "D1516",
+      "description": "Space maintainer - fixed - bilateral maxillary"
+    },
+    {
+      "code": "D1517",
+      "description": "Space maintainer - fixed - bilateral mandibular"
+    },
+    {
+      "code": "D1526",
+      "description": "Space maintainer - removable - bilateral maxillary"
+    },
+    {
+      "code": "D1527",
+      "description": "Space maintainer - removable - bilateral mandibular"
+    },
+    {
+      "code": "D1551",
+      "description": "Re-cement or re-bond bilateral space maintainer - maxillary"
+    },
+    {
+      "code": "D1552",
+      "description": "Re-cement or re-bond bilateral space maintainer - mandibular"
+    },
+    {
+      "code": "D1553",
+      "description": "Re-cement or re-bond unilateral space maintainer - per quadrant"
+    },
+    {
+      "code": "D1556",
+      "description": "Removal of fixed unilateral space maintainer - per quadrant"
+    },
+    {
+      "code": "D1557",
+      "description": "Removal of fixed bilateral space maintainer - maxillary"
+    },
+    {
+      "code": "D1558",
+      "description": "Removal of fixed bilateral space maintainer - mandibular"
+    },
+    {
+      "code": "D2140",
+      "description": "Amalgam-one surface primary or permanent"
+    },
+    {
+      "code": "D2150",
+      "description": "Amalgam-two surfaces primary or permanent"
+    },
+    {
+      "code": "D2160",
+      "description": "Amalgam-three surfaces primary or permanent"
+    },
+    {
+      "code": "D2161",
+      "description": "Amalgam-four or more surfaces primary or permanent"
+    },
+    {
+      "code": "D2330",
+      "description": "Resin-one surface anterior"
+    },
+    {
+      "code": "D2331",
+      "description": "Resin-two surfaces anterior"
+    },
+    {
+      "code": "D2332",
+      "description": "Resin-three surfaces anterior"
+    },
+    {
+      "code": "D2335",
+      "description": "Resin-four or more surfaces or involving incisal angle (anterior)"
+    },
+    {
+      "code": "D2391",
+      "description": "Resin-based composite - one surface posterior"
+    },
+    {
+      "code": "D2392",
+      "description": "Resin-based composite - two surfaces posterior"
+    },
+    {
+      "code": "D2393",
+      "description": "Resin-based composite - three surfaces posterior"
+    },
+    {
+      "code": "D2394",
+      "description": "Resin-based composite - four or more surfaces posterior"
+    },
+    {
+      "code": "D2542",
+      "description": "Onlay-metallic-two surfaces"
+    },
+    {
+      "code": "D2543",
+      "description": "Onlay - metallic - three surfaces"
+    },
+    {
+      "code": "D2544",
+      "description": "Onlay - metallic - four or more surfaces"
+    },
+    {
+      "code": "D2642",
+      "description": "Onlay - porcelain/ceramic - two surfaces"
+    },
+    {
+      "code": "D2643",
+      "description": "Onlay - porcelain/ceramic - three surfaces"
+    },
+    {
+      "code": "D2644",
+      "description": "Onlay - porcelain/ceramic - four or more surfaces"
+    },
+    {
+      "code": "D2662",
+      "description": "Onlay - resin-based composite - two surfaces"
+    },
+    {
+      "code": "D2663",
+      "description": "Onlay - resin-based composite - three surfaces"
+    },
+    {
+      "code": "D2664",
+      "description": "Onlay - - resin-based composite - four or more surfaces"
+    },
+    {
+      "code": "D2740",
+      "description": "Crown porcelain/ceramic"
+    },
+    {
+      "code": "D2751",
+      "description": "Crown-porcelain fused to predominantly base metal"
+    },
+    {
+      "code": "D2791",
+      "description": "Crown-full cast predominantly base metal"
+    },
+    {
+      "code": "D2910",
+      "description": "Re-cement or re-bond inlay onlay veneer or partial coverage restoration"
+    },
+    {
+      "code": "D2920",
+      "description": "Re-cement or re-bond crown"
+    },
+    {
+      "code": "D2930",
+      "description": "Prefabricated stainless steel crown-primary tooth"
+    },
+    {
+      "code": "D2931",
+      "description": "Prefabricated stainless steel crown-permanent tooth"
+    },
+    {
+      "code": "D2934",
+      "description": "Prefabricated esthetic coated stainless steel crown - primary tooth"
+    },
+    {
+      "code": "D2940",
+      "description": "Placement of interim direct restoration"
+    },
+    {
+      "code": "D2950",
+      "description": "Core build-up including any pins when required"
+    },
+    {
+      "code": "D2951",
+      "description": "Pin retention-per tooth in addition to restoration"
+    },
+    {
+      "code": "D2954",
+      "description": "Prefabricated post and core in addition to crown"
+    },
+    {
+      "code": "D2982",
+      "description": "Onlay repair necessitated by restorative material failure"
+    },
+    {
+      "code": "D2990",
+      "description": "Resin infiltration of incipient smooth surface lesions"
+    },
+    {
+      "code": "D2991",
+      "description": "Application of hydroxyapatite regeneration medicament - per tooth"
+    },
+    {
+      "code": "D2999",
+      "description": "Unspecified restorative procedure by report"
+    },
+    {
+      "code": "D3220",
+      "description": "Therapeutic pulpotomy (excluding final restoration) removal of pulp coronal to the dentinocemental junction and application of medicament"
+    },
+    {
+      "code": "D3310",
+      "description": "Endodontic therapy anterior tooth (excluding final restoration)"
+    },
+    {
+      "code": "D3320",
+      "description": "Endodontic therapy premolar tooth (excluding final restoration)"
+    },
+    {
+      "code": "D3330",
+      "description": "Endodontic therapy molar tooth (excluding final restoration)"
+    },
+    {
+      "code": "D3410",
+      "description": "Apicoectomy - anterior"
+    },
+    {
+      "code": "D3421",
+      "description": "Apicoectomy - premolar (first root)"
+    },
+    {
+      "code": "D3425",
+      "description": "Apicoectomy - molar (first root)"
+    },
+    {
+      "code": "D3950",
+      "description": "Canal preparation and fitting of preformed dowel or post"
+    },
+    {
+      "code": "D3999",
+      "description": "Unspecified endodontic procedure by report"
+    },
+    {
+      "code": "D4210",
+      "description": "Gingivectomy or gingivoplasty - four or more contiguous teeth or tooth bounded spaces per quadrant"
+    },
+    {
+      "code": "D4211",
+      "description": "Gingivectomy or gingivoplasty - one to three contiguous teeth or tooth bounded spaces per quadrant"
+    },
+    {
+      "code": "D4240",
+      "description": "Gingival flap procedure, including root planing - four or more contiguous teeth or tooth bounded spaces per quadrant"
+    },
+    {
+      "code": "D4241",
+      "description": "Gingival flap procedure, including root planing - one to three contiguous teeth or tooth bounded spaces per quadrant"
+    },
+    {
+      "code": "D4341",
+      "description": "Periodontal scaling and root planing - four or more teeth per quadrant"
+    },
+    {
+      "code": "D4342",
+      "description": "Periodontal SCRP; per 1 to 3 teeth"
+    },
+    {
+      "code": "D4355",
+      "description": "Full mouth debridement to enable a comprehensive periodontal evaluation and diagnosis on a subsequent visit"
+    },
+    {
+      "code": "D4910",
+      "description": "Periodontal maintenance"
+    },
+    {
+      "code": "D4999",
+      "description": "Unspecified periodontal procedure by report"
+    },
+    {
+      "code": "D5110",
+      "description": "Complete denture - maxillary"
+    },
+    {
+      "code": "D5120",
+      "description": "Complete denture - mandibular"
+    },
+    {
+      "code": "D5211",
+      "description": "Maxillary partial denture - resin base (including retentive/clasping materials rests and teeth)"
+    },
+    {
+      "code": "D5212",
+      "description": "Mandibular partial denture - resin base (including retentive/clasping materials rests and teeth)"
+    },
+    {
+      "code": "D5213",
+      "description": "Maxillary partial denture - cast metal framework with resin denture bases (including retentive/clasping materials rests and teeth)"
+    },
+    {
+      "code": "D5214",
+      "description": "Mandibular partial denture - cast metal framework with resin denture bases (including retentive/clasping materials rests and teeth)"
+    },
+    {
+      "code": "D5511",
+      "description": "Repair broken complete denture base mandibular"
+    },
+    {
+      "code": "D5512",
+      "description": "Repair broken complete denture base maxillary"
+    },
+    {
+      "code": "D5520",
+      "description": "Replace missing or broken teeth - complete denture - per tooth"
+    },
+    {
+      "code": "D5611",
+      "description": "Repair resin partial denture base mandibular"
+    },
+    {
+      "code": "D5612",
+      "description": "Repair resin partial denture base maxillary"
+    },
+    {
+      "code": "D5621",
+      "description": "Repair cast partial framework mandibular"
+    },
+    {
+      "code": "D5622",
+      "description": "Repair cast partial framework maxillary"
+    },
+    {
+      "code": "D5630",
+      "description": "Repair or replace broken retentive clasping materials - per tooth"
+    },
+    {
+      "code": "D5640",
+      "description": "Replace missing or broken teeth - partial denture - per tooth"
+    },
+    {
+      "code": "D5650",
+      "description": "Add tooth to existing partial denture - per tooth"
+    },
+    {
+      "code": "D5660",
+      "description": "Add clasp to existing partial denture - per tooth"
+    },
+    {
+      "code": "D5710",
+      "description": "Rebase complete maxillary denture"
+    },
+    {
+      "code": "D5711",
+      "description": "Rebase complete mandibular denture"
+    },
+    {
+      "code": "D5720",
+      "description": "Rebase maxillary partial denture"
+    },
+    {
+      "code": "D5721",
+      "description": "Rebase mandibular partial denture"
+    },
+    {
+      "code": "D5725",
+      "description": "Rebase of hybrid prosthesis"
+    },
+    {
+      "code": "D5730",
+      "description": "Reline complete maxillary denture (direct)"
+    },
+    {
+      "code": "D5731",
+      "description": "Reline lower complete mandibular denture (direct)"
+    },
+    {
+      "code": "D5740",
+      "description": "Reline maxillary partial denture (direct)"
+    },
+    {
+      "code": "D5741",
+      "description": "Reline mandibular partial denture (direct)"
+    },
+    {
+      "code": "D5750",
+      "description": "Reline complete maxillary denture (indirect)"
+    },
+    {
+      "code": "D5751",
+      "description": "Reline complete mandibular denture (indirect)"
+    },
+    {
+      "code": "D5760",
+      "description": "Reline maxillary partial denture (indirect)"
+    },
+    {
+      "code": "D5761",
+      "description": "Reline mandibular partial denture (indirect)"
+    },
+    {
+      "code": "D5765",
+      "description": "Soft liner for complete or partial denture (indirect)"
+    },
+    {
+      "code": "D5931",
+      "description": "Obturator prosthesis surgical"
+    },
+    {
+      "code": "D5932",
+      "description": "Obturator prosthesis definitive"
+    },
+    {
+      "code": "D5986",
+      "description": "Fluoride gel carrier"
+    },
+    {
+      "code": "D5999",
+      "description": "Unspecified maxillofacial prosthesis by report"
+    },
+    {
+      "code": "D6049",
+      "description": "Scaling and debridement of a single implant in the presence of peri-implantitis inflammation, bleeding upon probing and increased pocket depths, including cleaning of the implant surfaces, without flap entry and closure"
+    },
+    {
+      "code": "D6110",
+      "description": "Implant/abutment supported removable denture for edentulous arch - maxillary"
+    },
+    {
+      "code": "D6111",
+      "description": "Implant/abutment supported removable denture for edentulous arch - mandibular"
+    },
+    {
+      "code": "D6112",
+      "description": "Implant/abutment supported removable denture for partially edentulous arch - maxillary"
+    },
+    {
+      "code": "D6113",
+      "description": "Implant/abutment supported removable denture for partially edentulous arch - mandibular"
+    },
+    {
+      "code": "D6191",
+      "description": "Semi-precision abutment - placement"
+    },
+    {
+      "code": "D6192",
+      "description": "Semi-precision attachment - placement"
+    },
+    {
+      "code": "D6280",
+      "description": "Implant maintenance procedures when a full arch removable implant/abutment supported denture is removed and reinserted, including cleansing of prosthesis and abutments - per arch"
+    },
+    {
+      "code": "D6930",
+      "description": "Re-cement or re-bond fixed partial denture"
+    },
+    {
+      "code": "D6999",
+      "description": "Unspecified fixed prosthodontic procedure by report"
+    },
+    {
+      "code": "D7111",
+      "description": "Extraction coronal remnants - primary tooth"
+    },
+    {
+      "code": "D7140",
+      "description": "Extraction erupted tooth or exposed root (elevation and/or forceps removal)"
+    },
+    {
+      "code": "D7210",
+      "description": "Extraction erupted tooth requiring removal of bone and/or sectioning of tooth and including elevation of mucoperiosteal flap if indicated"
+    },
+    {
+      "code": "D7220",
+      "description": "Removal of impacted tooth-soft tissue"
+    },
+    {
+      "code": "D7230",
+      "description": "Removal of impacted tooth-partially bony"
+    },
+    {
+      "code": "D7240",
+      "description": "Removal of impacted tooth-completely bony"
+    },
+    {
+      "code": "D7241",
+      "description": "Removal of impacted tooth-completely bony with unusual surgical complications"
+    },
+    {
+      "code": "D7250",
+      "description": "Removal of residual tooth roots (cutting procedure)"
+    },
+    {
+      "code": "D7251",
+      "description": "Coronectomy - intentional partial tooth removal, impacted teeth only"
+    },
+    {
+      "code": "D7260",
+      "description": "Oral antral fistula closure"
+    },
+    {
+      "code": "D7261",
+      "description": "Primary closure of a sinus perforation"
+    },
+    {
+      "code": "D7270",
+      "description": "Tooth reimplantation and/or stabilization of accidentally evulsed or displaced tooth"
+    },
+    {
+      "code": "D7272",
+      "description": "Tooth transplantation (includes reimplantation from one site to another and splinting and/or stabilization)"
+    },
+    {
+      "code": "D7284",
+      "description": "Excisional biopsy of minor salivary glands"
+    },
+    {
+      "code": "D7285",
+      "description": "Incisional biopsy of oral tissue - hard (bone, tooth)"
+    },
+    {
+      "code": "D7286",
+      "description": "Incisional biopsy of oral tissue - soft"
+    },
+    {
+      "code": "D7294",
+      "description": "Placement of temporary anchorage device without flap; includes device removal"
+    },
+    {
+      "code": "D7299",
+      "description": "Rem anchorage device w/flap"
+    },
+    {
+      "code": "D7300",
+      "description": "Rem anchorage dev w/o flap"
+    },
+    {
+      "code": "D7320",
+      "description": "Alveoloplasty not in conjunction with extractions - four or more teeth or tooth spaces per quadrant"
+    },
+    {
+      "code": "D7321",
+      "description": "Alveoloplasty not in conjunction with extractions - one to three teeth or tooth spaces, per quadrant"
+    },
+    {
+      "code": "D7410",
+      "description": "Excision of benign lesion up to 1.25 cm"
+    },
+    {
+      "code": "D7411",
+      "description": "Excision of benign lesion greater than 1.25 cm"
+    },
+    {
+      "code": "D7412",
+      "description": "Excision of benign lesion complicated"
+    },
+    {
+      "code": "D7413",
+      "description": "Excision of malignant lesion up to 1.25 cm"
+    },
+    {
+      "code": "D7414",
+      "description": "Excision of malignant lesion greater than 1.25 cm"
+    },
+    {
+      "code": "D7415",
+      "description": "Excision of malignant lesion complicated"
+    },
+    {
+      "code": "D7440",
+      "description": "Excision of malignant tumor-lesion diameter up to 1.25 cm"
+    },
+    {
+      "code": "D7441",
+      "description": "Excision of malignant tumor-lesion diameter greater than 1.25 cm"
+    },
+    {
+      "code": "D7450",
+      "description": "Removal of benign odontogenic cyst or tumor-lesion diameter up to 1.25 cm"
+    },
+    {
+      "code": "D7451",
+      "description": "Removal of benign odontogenic cyst or tumor-lesion diameter greater than 1.25 cm"
+    },
+    {
+      "code": "D7460",
+      "description": "Removal of benign nonodontogenic cyst or tumor-lesion diameter up to 1.25 cm"
+    },
+    {
+      "code": "D7461",
+      "description": "Removal of benign nonodontogenic cyst or tumor-lesion diameter greater than 1.25 cm"
+    },
+    {
+      "code": "D7465",
+      "description": "Destruction of lesion(s) by physical or chemical methods by report"
+    },
+    {
+      "code": "D7471",
+      "description": "Removal of lateral exostosis (maxilla or mandible)"
+    },
+    {
+      "code": "D7472",
+      "description": "Removal of torus palatinus"
+    },
+    {
+      "code": "D7473",
+      "description": "Removal of torus mandibularis"
+    },
+    {
+      "code": "D7485",
+      "description": "Reduction of osseous tuberosity"
+    },
+    {
+      "code": "D7509",
+      "description": "Marsupialization odon cyst"
+    },
+    {
+      "code": "D7510",
+      "description": "Incision and drainage of abscess-intraoral soft tissue"
+    },
+    {
+      "code": "D7511",
+      "description": "Incision and drainage of abscess - intraoral soft tissue - complicated (includes drainage of multiple fascial spaces)"
+    },
+    {
+      "code": "D7520",
+      "description": "Incision and drainage of abscess-extraoral soft tissue"
+    },
+    {
+      "code": "D7521",
+      "description": "Incision and drainage of abscess - extraoral soft tissue - complicated (includes drainage of multiple fascial spaces)"
+    },
+    {
+      "code": "D7530",
+      "description": "Removal of foreign body from mucosa skin or subcutaneous alveolar tissue"
+    },
+    {
+      "code": "D7540",
+      "description": "Removal of reaction-producing foreign bodies-musculoskeletal system"
+    },
+    {
+      "code": "D7550",
+      "description": "Partial ostectomy/sequestrectomy for removal of non-vital bone"
+    },
+    {
+      "code": "D7560",
+      "description": "Maxillary sinusotomy for removal of tooth fragment or foreign body"
+    },
+    {
+      "code": "D7630",
+      "description": "Mandible-open reduction (teeth immobilized if present)"
+    },
+    {
+      "code": "D7640",
+      "description": "Mandible-closed reduction (teeth immobilized if present)"
+    },
+    {
+      "code": "D7660",
+      "description": "Malar and/or zygomatic arch-closed reduction"
+    },
+    {
+      "code": "D7670",
+      "description": "Alveolus - closed reduction may include stabilization of teeth"
+    },
+    {
+      "code": "D7671",
+      "description": "Alveolus - open reduction may include stabilization of teeth"
+    },
+    {
+      "code": "D7710",
+      "description": "Maxilla-open reduction"
+    },
+    {
+      "code": "D7720",
+      "description": "Maxilla-closed reduction"
+    },
+    {
+      "code": "D7730",
+      "description": "Mandible-open reduction"
+    },
+    {
+      "code": "D7740",
+      "description": "Mandible-closed reduction"
+    },
+    {
+      "code": "D7750",
+      "description": "Malar and/or zygomatic arch-open reduction"
+    },
+    {
+      "code": "D7760",
+      "description": "Malar and/or zygomatic arch-closed reduction"
+    },
+    {
+      "code": "D7770",
+      "description": "Alveolus - open reduction stabilization of teeth"
+    },
+    {
+      "code": "D7771",
+      "description": "Alveolus, closed reduction stabilization of teeth"
+    },
+    {
+      "code": "D7780",
+      "description": "Facial bones-complicated reduction with fixation and multiple approaches"
+    },
+    {
+      "code": "D7810",
+      "description": "Open reduction of dislocation"
+    },
+    {
+      "code": "D7820",
+      "description": "Closed reduction of dislocation"
+    },
+    {
+      "code": "D7840",
+      "description": "Condylectomy"
+    },
+    {
+      "code": "D7852",
+      "description": "Disc repair"
+    },
+    {
+      "code": "D7865",
+      "description": "Arthroplasty"
+    },
+    {
+      "code": "D7870",
+      "description": "Arthrocentesis"
+    },
+    {
+      "code": "D7871",
+      "description": "Non-arthroscopic lysis and lavage"
+    },
+    {
+      "code": "D7880",
+      "description": "Occlusal orthotic appliance"
+    },
+    {
+      "code": "D7910",
+      "description": "Suture of recent small wounds up to 5 cm"
+    },
+    {
+      "code": "D7911",
+      "description": "Complicated suture-up to 5 cm"
+    },
+    {
+      "code": "D7912",
+      "description": "Complicated suture-greater than 5 cm"
+    },
+    {
+      "code": "D7922",
+      "description": "Placement of intra-socket biological dressing to aid in hemostasis or clot stabilization per site"
+    },
+    {
+      "code": "D7940",
+      "description": "Osteoplasty-for orthognathic deformities"
+    },
+    {
+      "code": "D7941",
+      "description": "Osteotomy - mandibular rami"
+    },
+    {
+      "code": "D7944",
+      "description": "Osteotomy-segmented or subapical"
+    },
+    {
+      "code": "D7945",
+      "description": "Osteotomy-body of mandible"
+    },
+    {
+      "code": "D7946",
+      "description": "Lefort i (maxilla-total)"
+    },
+    {
+      "code": "D7947",
+      "description": "Lefort i (maxilla-segmented)"
+    },
+    {
+      "code": "D7948",
+      "description": "Lefort ii or lefort iii (osteoplasty of facial bones for midface hypoplasia or retrusion)-without bone graft"
+    },
+    {
+      "code": "D7949",
+      "description": "Lefort ii or lefort iii-with bone graft"
+    },
+    {
+      "code": "D7950",
+      "description": "Osseous, osteoperiosteal, or cartilage graft of the mandible or maxilla - autogenous or nonautogenous, by report"
+    },
+    {
+      "code": "D7953",
+      "description": "Bone replacement graft for ridge preservation - per site"
+    },
+    {
+      "code": "D7961",
+      "description": "Buccal / labial frenectomy (frenulectomy)"
+    },
+    {
+      "code": "D7962",
+      "description": "Lingual frenectomy (frenulectomy)"
+    },
+    {
+      "code": "D7970",
+      "description": "Excision of hyperplastic tissue-per arch"
+    },
+    {
+      "code": "D7971",
+      "description": "Excision of pericoronal gingiva"
+    },
+    {
+      "code": "D7972",
+      "description": "Surgical reduction of fibrous tuberosity"
+    },
+    {
+      "code": "D7980",
+      "description": "Surgical sialolithotomy"
+    },
+    {
+      "code": "D7983",
+      "description": "Closure of salivary fistula"
+    },
+    {
+      "code": "D7990",
+      "description": "Emergency tracheotomy"
+    },
+    {
+      "code": "D7997",
+      "description": "Appliance removal (not by dentist who placed appliance) includes removal of archbar"
+    },
+    {
+      "code": "D7999",
+      "description": "Unspecified oral surgery procedure by report"
+    },
+    {
+      "code": "D8703",
+      "description": "Replacement of lost or broken retainer - maxillary"
+    },
+    {
+      "code": "D8704",
+      "description": "Replacement of lost or broken retainer - mandibular"
+    },
+    {
+      "code": "D8999",
+      "description": "Unspecified orthodontic procedure by report"
+    },
+    {
+      "code": "D9110",
+      "description": "Palliative (emergency) treatment of dental pain-minor procedures"
+    },
+    {
+      "code": "D9222",
+      "description": "Administration of deep sedation/general anesthesia - first 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9223",
+      "description": "Administration of deep sedation/general anesthesia - each subsequent 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9224",
+      "description": "Administration of general anesthesia with advanced airway - first 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9225",
+      "description": "Administration of general anesthesia with advanced airway - each subsequent 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9230",
+      "description": "Administration of nitrous oxide"
+    },
+    {
+      "code": "D9239",
+      "description": "Administration of moderate sedation - intravenous - first 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9243",
+      "description": "Administration of moderate sedation - intravenous - each subsequent 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9246",
+      "description": "Administration of moderate sedation - non-intravenous parenteral - first 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9247",
+      "description": "Administration of moderate sedation - non-intravenous parenteral - each subsequent 15 minute increment, or any portion thereof"
+    },
+    {
+      "code": "D9310",
+      "description": "Consultation - diagnostic service provided by dentist or physician other than requesting dentist or physician"
+    },
+    {
+      "code": "D9410",
+      "description": "House/extended care facility call"
+    },
+    {
+      "code": "D9420",
+      "description": "Hospital or ambulatory surgical center call"
+    },
+    {
+      "code": "D9610",
+      "description": "Therapeutic parenteral drug single administration"
+    },
+    {
+      "code": "D9613",
+      "description": "Infiltration of sustained release therapeutic drug - single or multiple sites"
+    },
+    {
+      "code": "D9920",
+      "description": "Behavior management by report"
+    },
+    {
+      "code": "D9941",
+      "description": "Fabrication of athletic mouthguard"
+    },
+    {
+      "code": "D9944",
+      "description": "Occlusal guard - hard appliance full arch"
+    },
+    {
+      "code": "D9945",
+      "description": "Occlusal guard - soft appliance full arch"
+    },
+    {
+      "code": "D9953",
+      "description": "Reline sleep apnea appliance"
+    },
+    {
+      "code": "D9992",
+      "description": "Dental case management - care coordination"
+    },
+    {
+      "code": "D9999",
+      "description": "Unspecified adjunctive procedure by report"
+    }
+  ]
+}
