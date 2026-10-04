@@ -62,13 +62,13 @@ def test_preventive_skips_deductible():
 
 
 def test_out_of_network_balance_bill():
-    # F = 195, A = 160, d = 50, plan = 80% of 110 = 88, balance = 35,
-    # you = (160 - 88) + 35 = 107
+    # F = 210, A = 160, d = 50, plan = 80% of 110 = 88, balance = 50,
+    # you = (160 - 88) + 50 = 122
     r = adjudicate(claim("D2391", DILWORTH, date(2026, 11, 2)), state(), SUMMIT.plan)
     ins = r.insured
     assert r.network == "out"
     assert (ins.allowed_amount, ins.plan_pays) == (cents(160), cents(88))
-    assert (ins.balance_billing, ins.you_pay) == (cents(35), cents(107))
+    assert (ins.balance_billing, ins.you_pay) == (cents(50), cents(122))
 
 
 def test_allowed_amount_capped_at_billed_fee():
@@ -127,7 +127,7 @@ def test_waiting_period_denies_major_for_new_member():
     out_net = adjudicate(claim("D2740", DILWORTH, date(2026, 11, 2)), s, HARBOR.plan)
     assert in_net.insured.denial_reason == "waiting_period"
     assert in_net.insured.you_pay == cents(870)  # negotiated fee
-    assert out_net.insured.you_pay == cents(1250)  # full billed fee
+    assert out_net.insured.you_pay == cents(1350)  # full billed fee
 
 
 def test_waiting_period_ends_in_next_plan_year():
@@ -150,6 +150,17 @@ def test_initial_state_from_catalog_member():
     s = initial_state(KEYSTONE.plan, KEYSTONE.default_member)
     assert (s.deductible_remaining, s.max_remaining) == (0, cents(400))
     assert s.plan_year_start == date(2026, 1, 1)
+
+
+def test_past_services_count_toward_frequency_limits():
+    # Summit's member had cleanings on 2025-10-15 and 2026-04-14 (2 per 12
+    # months), so the next is covered once the first ages out on 2026-10-15.
+    s = initial_state(SUMMIT.plan, SUMMIT.default_member)
+    assert len(s.history) == 2
+    early = adjudicate(claim("D1110", UPTOWN, date(2026, 10, 14)), s, SUMMIT.plan)
+    on_time = adjudicate(claim("D1110", UPTOWN, date(2026, 10, 15)), s, SUMMIT.plan)
+    assert early.insured.denial_reason == "frequency_limit"
+    assert on_time.insured.eligible
 
 
 def test_splitting_across_reset_saves_when_maximum_is_nearly_used():

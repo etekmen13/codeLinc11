@@ -295,9 +295,9 @@ PROVIDERS: tuple[Provider, ...] = (
         credentials=("DDS",),
         networks=ALL_PLANS,
         fees={
-            "D1110": 125,
-            "D1206": 40,
-            "D2391": 185,
+            "D1110": 115,
+            "D1206": 35,
+            "D2391": 190,
             "D3330": 1150,
             "D2740": 1250,
             "D7140": 210,
@@ -319,9 +319,9 @@ PROVIDERS: tuple[Provider, ...] = (
         credentials=("DMD",),
         networks=ALL_PLANS,
         fees={
-            "D1110": 140,
+            "D1110": 130,
             "D1206": 45,
-            "D2391": 215,
+            "D2391": 220,
             "D3330": 1300,
             "D2740": 1400,
             "D7140": 240,
@@ -329,20 +329,14 @@ PROVIDERS: tuple[Provider, ...] = (
         cash_prices={},
     ),
     Provider(
-        # Refers root canals out.
+        # Refers root canals and crowns out.
         id="noda-family",
         name="NoDa Family Dentistry",
         lat=35.2470,
         lon=-80.8020,
         credentials=("DDS",),
         networks=frozenset({"summit-ppo-plus", "keystone-ppo"}),
-        fees={
-            "D1110": 110,
-            "D1206": 35,
-            "D2391": 165,
-            "D2740": 1150,
-            "D7140": 200,
-        },
+        fees={"D1110": 105, "D1206": 30, "D2391": 175, "D7140": 195},
         cash_prices={},
     ),
     Provider(
@@ -353,12 +347,12 @@ PROVIDERS: tuple[Provider, ...] = (
         credentials=("DDS",),
         networks=frozenset(),
         fees={
-            "D1110": 145,
+            "D1110": 140,
             "D1206": 50,
-            "D2391": 225,
-            "D3330": 1350,
-            "D2740": 1450,
-            "D7140": 250,
+            "D2391": 240,
+            "D3330": 1400,
+            "D2740": 1500,
+            "D7140": 260,
         },
         cash_prices={
             "D1110": 115,
@@ -370,14 +364,14 @@ PROVIDERS: tuple[Provider, ...] = (
         },
     ),
     Provider(
-        # Specialist: root canals only.
+        # Specialist.
         id="ballantyne-endo",
         name="Ballantyne Endodontics",
         lat=35.0500,
         lon=-80.8500,
         credentials=("DDS", "Endodontist"),
         networks=frozenset(),
-        fees={"D3330": 1450},
+        fees={"D3330": 1500, "D2740": 1450},
         cash_prices={"D3330": 1200},
     ),
     Provider(
@@ -388,12 +382,12 @@ PROVIDERS: tuple[Provider, ...] = (
         credentials=("DMD",),
         networks=frozenset(),
         fees={
-            "D1110": 130,
-            "D1206": 45,
-            "D2391": 195,
-            "D3330": 1200,
-            "D2740": 1250,
-            "D7140": 220,
+            "D1110": 125,
+            "D1206": 40,
+            "D2391": 210,
+            "D3330": 1250,
+            "D2740": 1350,
+            "D7140": 230,
         },
         cash_prices={
             "D1110": 95,
@@ -412,12 +406,12 @@ PROVIDERS: tuple[Provider, ...] = (
         credentials=("DMD",),
         networks=frozenset({"summit-ppo-plus", "harbor-ppo-basic"}),
         fees={
-            "D1110": 120,
-            "D1206": 40,
-            "D2391": 175,
+            "D1110": 110,
+            "D1206": 35,
+            "D2391": 180,
             "D3330": 1100,
             "D2740": 1200,
-            "D7140": 205,
+            "D7140": 200,
         },
         cash_prices={},
     ),

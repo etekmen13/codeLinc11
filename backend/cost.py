@@ -149,12 +149,17 @@ class AdjudicationResult:
 
 
 def initial_state(plan: Plan, member: MemberStatus) -> BenefitState:
-    """The benefit state for the plan year starting plan.plan_year_start."""
+    """The benefit state for the plan year starting plan.plan_year_start,
+    with the member's past services as history."""
     return BenefitState(
         plan_year_start=date.fromisoformat(plan.plan_year_start),
         deductible_remaining=max(0, cents(plan.deductible - member.deductible_met)),
         max_remaining=max(0, cents(plan.annual_maximum - member.amount_used)),
         coverage_start=date.fromisoformat(member.coverage_start),
+        history=tuple(
+            ServiceRecord(s.cdt_code, date.fromisoformat(s.date_of_service))
+            for s in member.past_services
+        ),
     )
 
 
