@@ -6,18 +6,19 @@ import {
   problems_of,
   type OnboardingRequest,
 } from "./api";
+import "./careplan/careplan.css";
+import { CarePlanScreen } from "./careplan/CarePlanScreen";
+import { CompareScreen } from "./careplan/CompareScreen";
+import { Tolerance } from "./careplan/shared";
+import { displayText } from "./lib/displayText";
 import { Onboarding } from "./onboarding/Onboarding";
+import { RiskScreen } from "./screens/RiskScreen";
 import type {
   CareComparison,
   CarePlan,
   OnboardingResult,
   ProviderCard,
 } from "./types";
-import { CompareScreen } from "./careplan/CompareScreen";
-import { CarePlanScreen } from "./careplan/CarePlanScreen";
-import { Tolerance } from "./careplan/shared";
-import { RiskScreen } from "./screens/RiskScreen";
-import "./careplan/careplan.css";
 
 export default function App() {
   const [screen, setScreen] = useState<
@@ -189,16 +190,14 @@ export default function App() {
             {screen === "compare" ? (
               <>
                 <h1>Compare the cost of your care.</h1>
-                <p>
-                  {onboarding.procedure.name} · {onboarding.procedure.cdt_code}
-                </p>
+                <p>{displayText(onboarding.procedure.name)}</p>
                 {compareLoading ? (
                   <div className="card" role="status">
                     Pricing schedules and simulated futures…
                   </div>
                 ) : compareError ? (
                   <div className="card" role="alert">
-                    <p>{compareError}</p>
+                    <p>{displayText(compareError)}</p>
                     <button onClick={() => setRetry((r) => r + 1)}>
                       Retry comparison
                     </button>
@@ -233,7 +232,7 @@ export default function App() {
               </div>
             ) : planError || compareError ? (
               <div className="card" role="alert">
-                <p>{planError || compareError}</p>
+                <p>{displayText(planError || compareError)}</p>
                 <button onClick={() => setRetry((r) => r + 1)}>
                   Retry care plan
                 </button>

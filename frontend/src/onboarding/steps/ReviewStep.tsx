@@ -1,4 +1,5 @@
 import { formatMoney, remainingMaximum } from "../../lib/coverage";
+import { displayText } from "../../lib/displayText";
 import type { Procedure, SamplePlan } from "../../types";
 import type { Step } from "../draft";
 import { StepNav } from "./StepNav";
@@ -66,7 +67,7 @@ export function ReviewStep({
           <dd>
             {procedure ? (
               <>
-                {procedure.name}
+                {displayText(procedure.name)}
                 <span className="ob-muted">
                   {" "}
                   (pricing is shown for each provider in the comparison)
@@ -92,7 +93,7 @@ export function ReviewStep({
           <p>Fix these and submit again:</p>
           <ul>
             {problems.map((p) => (
-              <li key={p}>{p}</li>
+              <li key={p}>{displayText(p)}</li>
             ))}
           </ul>
         </div>

@@ -1,14 +1,15 @@
 import { useState } from "react";
+import { useExplanation } from "../hooks/useExplanation";
+import { isInWaitingPeriod, waitingPeriodEnds } from "../lib/coverage";
+import { displayText } from "../lib/displayText";
 import type {
   CarePlan,
   CarePlanOption,
   OnboardingResult,
   ProviderCard,
 } from "../types";
-import { isInWaitingPeriod, waitingPeriodEnds } from "../lib/coverage";
-import { useExplanation } from "../hooks/useExplanation";
-import { SegmentedBar } from "./shared";
 import { dateLabel, day, money, percent } from "./format";
+import { SegmentedBar } from "./shared";
 const same = (a: CarePlanOption, b: CarePlanOption) =>
   a.date === b.date && a.path === b.path;
 const labelNames: Record<string, string> = {
@@ -293,7 +294,7 @@ export function CarePlanScreen({
                       {percent(outcome.probability)} ·{" "}
                       {outcome.visit.tooth_state.replaceAll("_", " ")} ·{" "}
                       {outcome.visit.lines
-                        .map((l) => l.procedure_name)
+                        .map((l) => displayText(l.procedure_name))
                         .join(", ") || "No treatment line"}{" "}
                       · patient share {money(outcome.visit.you_pay)}
                     </p>
@@ -480,11 +481,13 @@ export function CarePlanScreen({
         {costExplanation.loading && <p role="status">Loading explanation…</p>}
         {costExplanation.error && (
           <p role="alert">
-            {costExplanation.error} Numeric results remain available above.
+            {displayText(costExplanation.error)} Numeric results remain
+            available above.
           </p>
         )}
+
         {costExplanation.text && (
-          <p className="cp-text">{costExplanation.text}</p>
+          <p className="cp-text">{displayText(costExplanation.text)}</p>
         )}
         {!current && <p>Current-date quote unavailable.</p>}
       </section>
@@ -502,12 +505,13 @@ export function CarePlanScreen({
           {termExplanation.loading && <p>Explaining this term…</p>}
           {termExplanation.error && (
             <>
-              <p role="alert">{termExplanation.error}</p>
+              <p role="alert">{displayText(termExplanation.error)}</p>
               <p>{glossary[term]}</p>
             </>
           )}
+
           {termExplanation.text && (
-            <p className="cp-text">{termExplanation.text}</p>
+            <p className="cp-text">{displayText(termExplanation.text)}</p>
           )}
         </div>
         <small>
@@ -519,7 +523,7 @@ export function CarePlanScreen({
         <summary>Model assumptions and limitations</summary>
         <ul>
           {data.assumptions.map((a) => (
-            <li key={a}>{a}</li>
+            <li key={a}>{displayText(a)}</li>
           ))}
         </ul>
       </details>

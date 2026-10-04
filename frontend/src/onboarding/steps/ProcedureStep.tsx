@@ -4,6 +4,7 @@ import {
   isInWaitingPeriod,
   waitingPeriodEnds,
 } from "../../lib/coverage";
+import { displayText } from "../../lib/displayText";
 import type { MemberStatus, Plan, Procedure } from "../../types";
 import { StepNav } from "./StepNav";
 
@@ -173,13 +174,13 @@ export function ProcedureStep({
         <div aria-live="polite">
           {error && (
             <p role="alert" className="ob-notice">
-              {error}
+              {displayText(error)}
             </p>
           )}
           {mapping?.status === "needs_clarification" && (
             <div>
               <label htmlFor="cdt-answer">
-                {mapping.clarification_question}
+                {displayText(mapping.clarification_question ?? "")}
               </label>
               <input
                 id="cdt-answer"
@@ -232,7 +233,7 @@ export function ProcedureStep({
                         checked={procedure_code === candidate.code}
                         onChange={() => on_change(candidate.code)}
                       />
-                      <span>{procedure.name}</span>
+                      <span>{displayText(procedure.name)}</span>
                     </label>
                   );
                 })}
@@ -248,7 +249,9 @@ export function ProcedureStep({
               missing for this treatment.
             </p>
           )}
-          {selected && <p role="status">Treatment matched: {selected.name}</p>}
+          {selected && (
+            <p role="status">Treatment matched: {displayText(selected.name)}</p>
+          )}
         </div>
         <p className="ob-muted">
           Treatment matches are estimates. Final treatment and coverage details

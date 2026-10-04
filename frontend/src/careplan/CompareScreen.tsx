@@ -1,3 +1,4 @@
+import { displayText } from "../lib/displayText";
 import type { CareComparison, DentistOption, ProviderCard } from "../types";
 import { dateLabel, money, percent } from "./format";
 export function CompareScreen({
@@ -88,7 +89,7 @@ export function CompareScreen({
         <summary>Comparison assumptions</summary>
         <ul>
           {data.assumptions.map((a) => (
-            <li key={a}>{a}</li>
+            <li key={a}>{displayText(a)}</li>
           ))}
         </ul>
       </details>
