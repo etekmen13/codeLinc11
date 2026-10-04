@@ -73,8 +73,8 @@ def transition_matrix(multipliers: NDArray[np.float64]) -> NDArray[np.float64]:
     m = np.asarray(multipliers, dtype=np.float64)
     hazard = -np.log1p(-np.array(BASE_MONTHLY_P)) * m
     n = len(STATES)
-    total = np.zeros((*m.shape[:-1], n))
-    np.add.at(total, (..., _SRC), hazard)  # summed hazard out of each state
+    src_onehot = (_SRC[:, None] == np.arange(n)).astype(np.float64)  # (edges, states)
+    total = hazard @ src_onehot  # summed hazard out of each state
     leave = -np.expm1(-total)  # 1 - exp(-total)
     P = np.zeros((*m.shape[:-1], n, n))
     P[..., _SRC, _DST] = leave[..., _SRC] * hazard / total[..., _SRC]
