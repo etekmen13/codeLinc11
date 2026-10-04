@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -9,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
 from care_plan import bedrock_client
+from catalog import PROCEDURES
 
 router = APIRouter(prefix="/api/cdt", tags=["cdt"])
 logger = logging.getLogger(__name__)
@@ -33,6 +35,82 @@ class MappingResponse(ModelMapping):
     reference_source: str
     reference_scope: str
     requires_dentist_verification: bool = True
+    # "keywords" when Bedrock is not configured or fails, so the app still
+    # runs without AWS credentials
+    matched_by: Literal["model", "keywords"] = "model"
+
+
+# Keyword fallback. It only knows the procedures the app can price, and
+# never guesses: no match asks which one it is, using the same clarification
+# step the model uses.
+
+_PATTERNS = {
+    "D1110": r"\bclean(ing|ings)?\b|\bprophy|\btartar\b|\bplaque\b|\bpolish",
+    "D1206": r"\bfluoride\b|\bvarnish\b",
+    "D2391": r"\bfill(ing|ings|ed)?\b|\bcomposite\b|\bresin\b|\bcavit(y|ies)\b",
+    "D3330": r"\broot canal|\bendodontic|\bpulp|\bnerve\b",
+    "D7140": (
+        r"\bextract(ion|ions|ed)?\b|\bpull(ed|ing)?\b"
+        r"|\b(take|taking|remove|removing|removal of) (the |my |a )?tooth\b"
+    ),
+}
+_IMPLANT = r"\bimplants?\b"
+_CROWN = r"\bcrowns?\b|\bcaps?\b"
+_IMPLANT_POST = r"\bposts?\b|\bfixtures?\b|\bscrews?\b|\banchors?\b"
+
+
+def _member_text(description: str) -> str:
+    """The member's own words: the description plus answers, without the
+    clarification questions (which name every procedure)."""
+    parts = []
+    for line in description.splitlines():
+        if line.startswith("Question:") and "Answer:" in line:
+            line = line.rsplit("Answer:", 1)[1]
+        parts.append(line)
+    return " ".join(parts).lower()
+
+
+def keyword_codes(description: str) -> list[str]:
+    """Codes of the priceable procedures the description mentions, in
+    catalog order."""
+    text = _member_text(description)
+    found = {code for code, p in _PATTERNS.items() if re.search(p, text)}
+    crown = re.search(_CROWN, text)
+    if re.search(_IMPLANT, text):
+        post = re.search(_IMPLANT_POST, text)
+        if post or not crown:
+            found.add("D6010")
+        if crown or not post:
+            found.add("D6065")
+    elif crown:
+        found.add("D2740")
+    return [p.cdt_code for p in PROCEDURES if p.cdt_code in found]
+
+
+def keyword_mapping(description: str) -> MappingResponse:
+    names = {p.cdt_code: p.name for p in PROCEDURES}
+    codes = keyword_codes(description)[:5]
+    source = {
+        "reference_source": "This app's procedure list (keyword matching)",
+        "reference_scope": "Only the procedures this app can price",
+        "matched_by": "keywords",
+    }
+    if not codes:
+        listed = ", ".join(p.name.lower() for p in PROCEDURES)
+        return MappingResponse(
+            status="needs_clarification",
+            candidate_codes=[],
+            clarification_question=(f"Which of these treatments is it: {listed}?"),
+            **source,
+        )
+    return MappingResponse(
+        status="candidate",
+        candidate_codes=[
+            Candidate(code=c, reason=f"The description mentions {names[c].lower()}.")
+            for c in codes
+        ],
+        **source,
+    )
 
 
 @router.post("/map", response_model=MappingResponse)
@@ -46,7 +124,7 @@ def map_cdt(request: MappingRequest):
     valid_codes = {row["code"] for row in catalog["codes"]}
     model_id = os.environ.get("BEDROCK_MODEL_ID")
     if not model_id:
-        raise HTTPException(503, detail="BEDROCK_MODEL_ID is not configured.")
+        return keyword_mapping(request.treatment_description)
     try:
         response = bedrock_client().converse(
             modelId=model_id,
@@ -109,11 +187,8 @@ def map_cdt(request: MappingRequest):
             reference_scope=catalog["scope"],
         )
     except (ClientError, BotoCoreError):
-        logger.exception("Bedrock CDT mapping failed")
-        raise HTTPException(502, detail="The code mapper is temporarily unavailable.")
+        logger.exception("Bedrock CDT mapping failed; using keyword matching")
+        return keyword_mapping(request.treatment_description)
     except (ValueError, ValidationError):
-        logger.exception("Invalid CDT mapping response")
-        raise HTTPException(
-            502,
-            detail="The model returned an invalid mapping. Try a more specific description.",
-        )
+        logger.exception("Invalid CDT mapping response; using keyword matching")
+        return keyword_mapping(request.treatment_description)
