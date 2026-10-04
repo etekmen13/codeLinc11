@@ -156,6 +156,22 @@ export interface RiskSummary {
   worst_state_at_horizon: number;
 }
 
+// POST /api/simulation: the reporting simulation the care plan endpoints
+// use, so summary matches their risk field for the same request.
+export interface ToothSimulation {
+  as_of: string; // ISO date, month 0
+  start_state: string;
+  states: string[]; // best to worst; indexes dist and sample_paths
+  horizon: number; // months after as_of
+  n_samples: number; // futures simulated
+  month_dates: string[]; // ISO dates, as_of plus m months for m in 0..horizon
+  dist: number[][]; // [month][state]: share of futures in that state
+  risk: number[]; // [month]: share of futures worse than start_state
+  summary: RiskSummary;
+  risk_bands: RiskBand[];
+  sample_paths: number[][]; // [future][month]: state index; a random sample
+}
+
 export interface CarePlanLine {
   cdt_code: string;
   procedure_name: string;
