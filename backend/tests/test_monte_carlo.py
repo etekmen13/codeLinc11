@@ -7,7 +7,10 @@ from handoff import build_simulation_input
 from monte_carlo import (
     HORIZON_MONTHS,
     BandSegment,
+    RiskBand,
+    check_bands,
     outcome_summary,
+    risk_band,
     run_simulation,
     simulate,
 )
@@ -103,7 +106,7 @@ def test_outcome_summary_bands_and_window():
     dist = np.zeros((5, len(STATES)))
     s = outcome_summary(risk, dist)
     assert s.bands == ("low", "low", "medium", "high", "medium")
-    assert s.recommended_window_months == 1
+    assert s.low_risk_until_month == 1
     assert s.band_segments == (
         BandSegment("low", 0, 1),
         BandSegment("medium", 2, 2),
@@ -115,8 +118,52 @@ def test_outcome_summary_bands_and_window():
 
 def test_outcome_summary_window_is_horizon_when_risk_stays_low():
     s = outcome_summary(np.zeros(4), np.zeros((4, len(STATES))))
-    assert s.recommended_window_months == 3
+    assert s.low_risk_until_month == 3
     assert s.band_ranges["high"] is None
+
+
+def test_band_limits_are_half_open():
+    # Each band covers [previous limit, its limit).
+    assert [risk_band(r) for r in (0.0999, 0.10, 0.2499, 0.25, 1.0)] == [
+        "low",
+        "medium",
+        "medium",
+        "high",
+        "high",
+    ]
+
+
+def test_outcome_summary_takes_any_number_of_bands():
+    bands = (
+        RiskBand("minimal", 0.05),
+        RiskBand("low", 0.10),
+        RiskBand("medium", 0.25),
+        RiskBand("high", 0.50),
+        RiskBand("very_high", None),
+    )
+    risk = np.array([0.0, 0.07, 0.30, 0.60])
+    s = outcome_summary(risk, np.zeros((4, len(STATES))), bands)
+    assert s.bands == ("minimal", "low", "high", "very_high")
+    assert s.low_risk_until_month == 0
+    assert s.band_ranges.keys() == {b.name for b in bands}
+    assert s.band_ranges["medium"] is None
+    assert s.band_limits == bands
+
+
+@pytest.mark.parametrize(
+    "bands",
+    [
+        (),
+        (RiskBand("low", 0.1),),  # last band must be unbounded
+        (RiskBand("low", None), RiskBand("high", None)),
+        (RiskBand("low", 0.3), RiskBand("mid", 0.2), RiskBand("high", None)),
+        (RiskBand("low", 0.1), RiskBand("low", None)),  # duplicate name
+        (RiskBand("low", 1.0), RiskBand("high", None)),
+    ],
+)
+def test_check_bands_rejects_bad_configs(bands):
+    with pytest.raises(ValueError):
+        check_bands(bands)
 
 
 def test_app_still_has_main():

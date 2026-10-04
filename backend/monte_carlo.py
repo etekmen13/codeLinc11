@@ -9,10 +9,14 @@ Output: numpy arrays (paths, dist, risk). No fees or insurance here: the
 Main entry: simulate(onboarded) runs the onboarding's tooth through the
 progression model and returns a SimulationResult. States are
 progression.STATES; month 0 is today.
+
+Risk bands describe how likely the tooth is to be worse than it is now. They
+are information for the employee, not a treatment recommendation.
 """
 
 from dataclasses import dataclass
-from typing import ClassVar, Literal
+from itertools import pairwise
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -24,7 +28,39 @@ from progression import STATE_INDEX, STATES
 # Two years: past any plan-year reset, with a year to spare.
 HORIZON_MONTHS = 24
 
-RiskBand = Literal["low", "medium", "high"]
+
+@dataclass(frozen=True)
+class RiskBand:
+    name: str
+    # Escalation probabilities below this fall in the band; None means no
+    # limit, which only the last band has.
+    upper: float | None
+
+
+# Ordered from least to most risk; band i covers [band i-1's upper, upper).
+# Add, remove, or move bands here: nothing else hardcodes them.
+RISK_BANDS: tuple[RiskBand, ...] = (
+    RiskBand("low", 0.10),
+    RiskBand("medium", 0.25),
+    RiskBand("high", None),
+)
+
+
+def check_bands(bands: tuple[RiskBand, ...]) -> None:
+    if not bands:
+        raise ValueError("need at least one risk band")
+    if len({b.name for b in bands}) != len(bands):
+        raise ValueError("risk band names must be unique")
+    if bands[-1].upper is not None:
+        raise ValueError("the last risk band must have no upper limit")
+    limits = [0.0]
+    for b in bands[:-1]:
+        if b.upper is None:
+            raise ValueError("only the last risk band can have no upper limit")
+        limits.append(b.upper)
+    limits.append(1.0)
+    if any(a >= b for a, b in pairwise(limits)):
+        raise ValueError("risk band limits must increase strictly within (0, 1)")
 
 
 def run_simulation(
@@ -76,33 +112,34 @@ def run_simulation(
     return paths, dist, risk
 
 
-def risk_band(r: float, low: float = 0.10, high: float = 0.25) -> RiskBand:
-    """low: under `low`, medium: `low` to `high`, high: over `high`."""
-    if r < low:
-        return "low"
-    if r <= high:
-        return "medium"
-    return "high"
+def risk_band(r: float, bands: tuple[RiskBand, ...] = RISK_BANDS) -> str:
+    """Name of the first band whose upper limit is above r."""
+    for b in bands:
+        if b.upper is None or r < b.upper:
+            return b.name
+    raise ValueError("the last risk band must have no upper limit")
 
 
 @dataclass(frozen=True)
 class BandSegment:
-    band: RiskBand
+    band: str
     start_month: int
     end_month: int  # inclusive
 
 
 @dataclass(frozen=True)
 class OutcomeSummary:
-    recommended_window_months: int  # end of the low-risk band
-    low_threshold: float
-    high_threshold: float
-    bands: tuple[RiskBand, ...]  # band for each month 0..horizon
-    # First month each band starts and last month it ends (None if it never occurs)
-    band_ranges: dict[RiskBand, BandSegment | None]
+    # Last month before risk first leaves the lowest band (the horizon if it
+    # never does).
+    low_risk_until_month: int
+    band_limits: tuple[RiskBand, ...]  # the bands used, least risk first
+    bands: tuple[str, ...]  # band name for each month 0..horizon
+    # First month each band starts and last month it ends (None if it never
+    # occurs), keyed by every band in band_limits
+    band_ranges: dict[str, BandSegment | None]
     # Consecutive runs, in order; lists a band twice if risk dips back
     band_segments: tuple[BandSegment, ...]
-    risk_at_window: float
+    risk_at_low_risk_until: float
     risk_at_horizon: float
     worst_state_at_horizon: float  # share of futures in the last (worst) state
 
@@ -110,49 +147,39 @@ class OutcomeSummary:
 def outcome_summary(
     risk: NDArray[np.float64],
     dist: NDArray[np.float64],
-    low: float = 0.10,
-    high: float = 0.25,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
 ) -> OutcomeSummary:
-    """Numbers for the Outcome Summary: risk band per month + recommended window.
-
-    low, high: escalation-probability cutoffs between the bands.
-    """
-    if not 0 < low < high < 1:
-        raise ValueError("need 0 < low < high < 1")
-    bands = tuple(risk_band(float(r), low, high) for r in risk)
-
-    def last_month_before(bad: set[RiskBand]) -> int | None:
-        # last month before the band first reaches one of `bad`
-        # (None if that never happens within the horizon)
-        for t, b in enumerate(bands):
-            if b in bad:
-                return t - 1
-        return None
+    """Numbers for the Outcome Summary: the risk band for each month and how
+    long risk stays in the lowest band."""
+    check_bands(bands)
+    by_month = tuple(risk_band(float(r), bands) for r in risk)
 
     # Consecutive runs of the same band, e.g. low 0-2, medium 3-7, high 8-24
     segments: list[BandSegment] = []
-    for t, b in enumerate(bands):
+    for t, b in enumerate(by_month):
         if segments and segments[-1].band == b:
             segments[-1] = BandSegment(b, segments[-1].start_month, t)
         else:
             segments.append(BandSegment(b, t, t))
 
-    band_ranges: dict[RiskBand, BandSegment | None] = {}
-    for name in ("low", "medium", "high"):
-        months = [t for t, b in enumerate(bands) if b == name]
-        band_ranges[name] = BandSegment(name, months[0], months[-1]) if months else None
+    band_ranges: dict[str, BandSegment | None] = {}
+    for band in bands:
+        months = [t for t, b in enumerate(by_month) if b == band.name]
+        band_ranges[band.name] = (
+            BandSegment(band.name, months[0], months[-1]) if months else None
+        )
 
     horizon = len(risk) - 1
-    low_until = last_month_before({"medium", "high"})
-    window = horizon if low_until is None else max(low_until, 0)
+    lowest = bands[0].name
+    left = next((t for t, b in enumerate(by_month) if b != lowest), None)
+    until = horizon if left is None else max(left - 1, 0)
     return OutcomeSummary(
-        recommended_window_months=window,
-        low_threshold=low,
-        high_threshold=high,
-        bands=bands,
+        low_risk_until_month=until,
+        band_limits=bands,
+        bands=by_month,
         band_ranges=band_ranges,
         band_segments=tuple(segments),
-        risk_at_window=float(risk[window]),
+        risk_at_low_risk_until=float(risk[until]),
         risk_at_horizon=float(risk[-1]),
         worst_state_at_horizon=float(dist[-1, -1]),
     )
@@ -190,6 +217,7 @@ def simulate(
     horizon: int = HORIZON_MONTHS,
     n_samples: int = N_SAMPLES,
     seed: int = 0,
+    bands: tuple[RiskBand, ...] = RISK_BANDS,
 ) -> SimulationResult:
     """Simulate the onboarding's tooth, starting at the state its procedure
     treats. One seeded stream drives both the per-future hazard multipliers
@@ -204,11 +232,12 @@ def simulate(
         dist=dist,
         risk=risk,
         paths=paths,
-        summary=outcome_summary(risk, dist),
+        summary=outcome_summary(risk, dist, bands),
     )
 
 
 def _check() -> None:
+    check_bands(RISK_BANDS)
     # risk compares state indices, so STATES must run from best to worst.
     if STATE_INDEX["healthy"] != 0 or STATE_INDEX["extraction"] != len(STATES) - 1:
         raise ValueError("progression.STATES must be ordered best to worst")
