@@ -290,32 +290,6 @@ def test_lever_savings_split_the_total():
     assert sum(shares.values()) == pytest.approx(plan.savings.mean)
 
 
-# Summit crown, no progression. Plaza Midwood is out of network: A = 1000,
-# billed 1500. Its lowest-cost option is January (grace period): d = 50,
-# plan 50% of 950 = 475, you owe 525 + 500 balance bill = 1025; $300 of FSA,
-# 725 elected at 30%: 0.7 * 725 = 507.50. In network (A = 950) January is
-# plan 450, you 500, 200 elected: 140. Uptown, SouthPark, and University City
-# tie at 140; Uptown is nearest.
-
-
-def test_hint_names_a_cheaper_dentist():
-    o = onboarded("summit-ppo-plus", "D2740")
-    sim = fake_sim(o)
-    plan = choose_plan(o, PROVIDERS_BY_ID["plaza-midwood"], sim, sim)
-    assert plan.lowest_cost.cost.mean == pytest.approx(50750)
-    hint = plan.provider_hint
-    assert hint is not None
-    assert (hint.provider_id, hint.in_network) == ("uptown-smiles", True)
-    assert hint.option.date == date(2027, 1, 4)
-    assert hint.savings.mean == pytest.approx(36750)
-
-
-def test_no_hint_when_no_one_is_cheaper():
-    o = onboarded("summit-ppo-plus", "D2740")
-    sim = fake_sim(o)
-    assert choose_plan(o, UPTOWN, sim, sim).provider_hint is None
-
-
 def test_tracking_when_the_maximum_and_fsa_are_used_up():
     # Keystone root canal now: the plan pays the last 400 of the maximum and
     # the FSA pays 400, so nothing is left to expire. A cleaning would be
@@ -387,12 +361,14 @@ def test_without_an_fsa_the_fresh_maximum_wins():
 
 
 # Comparing dentists. Summit crown, no progression; each dentist's lowest-cost
-# option is January, in the grace period (see the hint tests above for the
-# in-network 140 and Plaza Midwood's 507.50).
-# Out of network, A = 1000: d = 50, plan 50% of 950 = 475, so 525 of the
-# allowed amount plus the balance bill, less the $300 FSA, is elected at 30%.
+# option is January, in the grace period, after a fresh $50 deductible.
+# In network, A = 950: plan 50% of 900 = 450, you owe 500; the $300 FSA pays
+# 300 and 200 is elected at 30%: 0.7 * 200 = 140.
+# Out of network, A = 1000: plan 50% of 950 = 475, so you owe 525 plus the
+# balance bill; after the FSA, the rest is elected at 30%.
 #   Dilworth (billed 1350): 525 + 350 = 875; 0.7 * 575 = 402.50.
 #   Ballantyne (billed 1450): 525 + 450 = 975; 0.7 * 675 = 472.50.
+#   Plaza Midwood (billed 1500): 525 + 500 = 1025; 0.7 * 725 = 507.50.
 
 
 def test_compare_ranks_each_dentist_on_their_best_schedule():

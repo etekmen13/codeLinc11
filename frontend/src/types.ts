@@ -220,15 +220,6 @@ export interface Savings {
   probability_costs_more: number; // share of futures where it costs more
 }
 
-export interface ProviderHint {
-  provider_id: string;
-  name: string;
-  in_network: boolean;
-  distance_miles: number;
-  option: CarePlanOption; // that dentist's lowest-cost option
-  savings: Savings; // versus the chosen dentist's
-}
-
 export interface MaximumUsage {
   plan_year_start: string; // ISO date
   resets_on: string; // ISO date, first day of the next plan year
@@ -271,7 +262,6 @@ export interface CarePlan {
   lever_savings: Record<string, number>; // timing, cash, fsa_planning
   beyond_tolerance: CarePlanOption | null; // cheaper but riskier
   beyond_tolerance_savings: Savings | null; // versus lowest_cost
-  provider_hint: ProviderHint | null;
   maximum: MaximumUsage[];
   fsa: FsaTracker | null;
   reminders: Reminder[];

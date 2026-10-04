@@ -35,7 +35,6 @@ from sequencer import (
     Line,
     MaximumUsage,
     Option,
-    ProviderHint,
     Reminder,
     Savings,
     plan_care,
@@ -111,15 +110,6 @@ class SavingsOut(BaseModel):
     probability_costs_more: float
 
 
-class ProviderHintOut(BaseModel):
-    provider_id: str
-    name: str
-    in_network: bool
-    distance_miles: float
-    option: OptionOut
-    savings: SavingsOut
-
-
 class MaximumUsageOut(BaseModel):
     plan_year_start: date
     resets_on: date
@@ -160,7 +150,6 @@ class CarePlanOut(BaseModel):
     lever_savings: dict[str, float]
     beyond_tolerance: OptionOut | None
     beyond_tolerance_savings: SavingsOut | None
-    provider_hint: ProviderHintOut | None
     maximum: list[MaximumUsageOut]
     fsa: FsaTrackerOut | None
     reminders: list[ReminderOut]
@@ -234,17 +223,6 @@ def savings_out(s: Savings) -> SavingsOut:
     )
 
 
-def hint_out(h: ProviderHint) -> ProviderHintOut:
-    return ProviderHintOut(
-        provider_id=h.provider_id,
-        name=h.name,
-        in_network=h.in_network,
-        distance_miles=h.distance_miles,
-        option=option_out(h.option),
-        savings=savings_out(h.savings),
-    )
-
-
 def maximum_out(m: MaximumUsage) -> MaximumUsageOut:
     return MaximumUsageOut(
         plan_year_start=m.plan_year_start,
@@ -293,7 +271,6 @@ def care_plan_out(p: CarePlan, bands: tuple[RiskBand, ...]) -> CarePlanOut:
         beyond_tolerance_savings=savings_out(beyond_savings)
         if beyond_savings
         else None,
-        provider_hint=hint_out(p.provider_hint) if p.provider_hint else None,
         maximum=[maximum_out(m) for m in p.maximum],
         fsa=fsa_out(p.fsa) if p.fsa else None,
         reminders=[reminder_out(r) for r in p.reminders],

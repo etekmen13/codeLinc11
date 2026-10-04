@@ -79,13 +79,11 @@ def test_tail_weight_and_tolerance_change_the_pick():
     assert medium["lowest_cost"]["band"] == "medium"
 
 
-def test_hint_and_reminders():
-    # Summit crown at Plaza Midwood (out of network): in-network dentists cost
-    # less, and the unused maximum and covered cleaning are reminders.
+def test_reminders():
+    # Summit crown at Plaza Midwood: the unused maximum and a covered cleaning
+    # are reminders.
     data = post(plan_id="summit-ppo-plus", code="D2740", provider_id="plaza-midwood")
     data = data.json()
-    hint = data["provider_hint"]
-    assert hint["in_network"] and hint["savings"]["mean"] > 0
     kinds = [r["kind"] for r in data["reminders"]]
     assert "annual_maximum_expires" in kinds and "cleaning_covered" in kinds
 

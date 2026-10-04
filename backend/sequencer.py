@@ -75,9 +75,6 @@ AFTER_RESET_DAYS = 3
 # Dentists farther than this from the member are left out of comparisons.
 DEFAULT_RADIUS_MILES = 25.0
 
-# Smallest expected saving worth a "switch dentists" hint, in cents.
-HINT_MIN_SAVINGS = 100
-
 # Options are compared on expected cost plus this weight times the mean of
 # the costliest 5% of futures, so a cheaper option with a costly bad case
 # can lose to a steadier one. 0 compares on expected cost alone.
@@ -576,56 +573,6 @@ def lever_savings(
     return shares
 
 
-@dataclass(frozen=True)
-class ProviderHint:
-    """Another dentist whose lowest-cost option within the tolerance costs
-    less than the chosen dentist's."""
-
-    provider_id: str
-    name: str
-    in_network: bool
-    distance_miles: float
-    option: Option
-    savings: Savings  # versus the chosen dentist's lowest-cost option
-
-
-def provider_hint(
-    o: Onboarded,
-    chosen: Provider,
-    chosen_best: Scored,
-    select_sim: SimulationResult,
-    report_sim: SimulationResult,
-    pricer: Pricer,
-    allowed: set[str],
-    cvar_weight: float,
-    bands: tuple[RiskBand, ...] = RISK_BANDS,
-) -> ProviderHint | None:
-    """The other dentist with the largest expected saving, nearest first on
-    ties; None if no one saves at least HINT_MIN_SAVINGS."""
-    found: list[ProviderHint] = []
-    for d in pricer.providers:
-        if d.id == chosen.id or o.procedure.cdt_code not in d.fees:
-            continue
-        ev = evaluate(o, d, select_sim, report_sim, pricer, bands)
-        within = [s for s in ev.select if s.option.band in allowed]
-        best = ev.reported(lowest_cost(within, cvar_weight))
-        miles = distance_miles(EXAMPLE_USER_LOCATION, (d.lat, d.lon))
-        found.append(
-            ProviderHint(
-                provider_id=d.id,
-                name=d.name,
-                in_network=o.plan.id in d.networks,
-                distance_miles=round(miles, 1),
-                option=best.option,
-                savings=savings(chosen_best, best),
-            )
-        )
-    if not found:
-        return None
-    top = min(found, key=lambda h: (-round(h.savings.mean), h.distance_miles))
-    return top if top.savings.mean >= HINT_MIN_SAVINGS else None
-
-
 # Benefit tracking
 
 
@@ -800,7 +747,6 @@ class CarePlan:
     # The lowest-cost option overall, if it is cheaper but in a riskier band
     beyond_tolerance: Option | None
     beyond_tolerance_savings: Savings | None  # versus lowest_cost
-    provider_hint: ProviderHint | None
     # For lowest_cost: the annual maximum by plan year, the FSA, and what
     # expires unused
     maximum: tuple[MaximumUsage, ...]
@@ -834,9 +780,6 @@ def choose_plan(
     baseline = full.baseline(o.as_of)
     chosen = full.reported(best)
     beyond = full.reported(overall) if overall is not best else None
-    hint = provider_hint(
-        o, provider, chosen, select_sim, report_sim, pricer, allowed, cvar_weight, bands
-    )
     maximum = maximum_usage(o, chosen.option, pricer)
     fsa_tracker = track_fsa(o, chosen.option)
     return CarePlan(
@@ -851,7 +794,6 @@ def choose_plan(
         lever_savings=lever_savings(o, full, plain, allowed, cvar_weight),
         beyond_tolerance=beyond.option if beyond else None,
         beyond_tolerance_savings=savings(chosen, beyond) if beyond else None,
-        provider_hint=hint,
         maximum=maximum,
         fsa=fsa_tracker,
         reminders=reminders(o, provider, maximum, fsa_tracker, pricer),
